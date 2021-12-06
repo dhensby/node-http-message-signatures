@@ -6,7 +6,7 @@
   "types": "lib/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "lint": "eslint -c .eslintrc.json --ignore-path .eslintignore ./ --ext .ts",
+    "lint": "tslint -c tslint.json ./src/**/*.ts ./test/**/*.ts",
     "prepare": "npm run build",
     "preversion": "npm run lint",
     "test": "mocha -r ts-node/register test/**/*.ts"

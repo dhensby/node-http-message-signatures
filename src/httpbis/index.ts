@@ -119,6 +119,6 @@ export async function sign(request: RequestLike, opts: SignOptions): Promise<Req
     const dataToSign = buildSignedData(request, signingComponents, signatureInputString);
     const signature = await opts.signer(Buffer.from(dataToSign));
     request.headers['Signature-Input'] = `sig1=${signatureInputString}`;
-    request.headers['Signature'] = `sig1=:${signature.toString('base64')}:`;
+    request.headers.Signature = `sig1=:${signature.toString('base64')}:`;
     return request;
 }
