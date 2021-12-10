@@ -19,7 +19,7 @@ describe('rsa-pss-sha512', () => {
                 privateKeyEncoding: {
                     type: 'pkcs8',
                     format: 'pem',
-                }
+                },
             });
         });
         describe('signing', () => {
@@ -40,7 +40,7 @@ describe('rsa-pss-sha512', () => {
                 const data = 'some random data';
                 const sig = sign('sha512', Buffer.from(data), {
                     key: rsaKeyPair.privateKey,
-                    padding: RSA_PKCS1_PSS_PADDING
+                    padding: RSA_PKCS1_PSS_PADDING,
                 });
                 expect(verifier.alg).to.equal('rsa-pss-sha512');
                 expect(sig).to.satisfy((arg: Buffer) => verifier(data, arg));

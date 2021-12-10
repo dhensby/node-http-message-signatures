@@ -18,7 +18,7 @@ describe('ecdsa-p256-sha256', () => {
                 privateKeyEncoding: {
                     type: 'pkcs8',
                     format: 'pem',
-                }
+                },
             });
         });
         describe('signing', () => {

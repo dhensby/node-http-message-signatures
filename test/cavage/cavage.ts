@@ -1,4 +1,4 @@
-import { Component, Parameters, RequestLike } from '../../src';
+import { RequestLike } from '../../src';
 import { buildSignatureInputString, buildSignedData } from '../../src/cavage';
 import { expect } from 'chai';
 
@@ -24,12 +24,12 @@ describe('cavage', () => {
                 method: 'GET',
                 url: 'https://example.org/foo',
                 headers: {
-                    Host: 'example.org',
-                    Date: 'Tue, 07 Jun 2014 20:51:35 GMT',
+                    'Host': 'example.org',
+                    'Date': 'Tue, 07 Jun 2014 20:51:35 GMT',
                     'X-Example': 'Example header\n    with some whitespace.',
                     'X-EmptyHeader': '',
                     'Cache-Control': ['max-age=60', 'must-revalidate'],
-                }
+                },
             };
             it('builds the signed data payload', () => {
                 const payload = buildSignedData(testRequest, [
