@@ -143,10 +143,10 @@ describe('httpbis', () => {
             method: 'POST',
             url: 'https://example.com/foo?param=value&pet=dog',
             headers: {
-                Host: 'example.com',
-                Date: 'Tue, 20 Apr 2021 02:07:55 GMT',
+                'Host': 'example.com',
+                'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
                 'Content-Type': 'application/json',
-                Digest: 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
+                'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
                 'Content-Length': '18',
             },
             body: '{"hello": "world"}',
