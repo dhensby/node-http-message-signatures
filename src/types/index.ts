@@ -3,7 +3,7 @@ import { Signer, Verifier } from '../algorithm';
 type HttpLike = {
     method: string,
     url: string,
-    headers: { [header: string]: string | string[] | undefined },
+    headers: Record<string, { toString(): string } | string | string[] | undefined>,
     body?: string | Buffer,
 }
 

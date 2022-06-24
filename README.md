@@ -1,5 +1,7 @@
 # HTTP Message Signatures
 
+[![Node.js CI](https://github.com/dhensby/node-http-message-signatures/actions/workflows/nodejs.yml/badge.svg)](https://github.com/dhensby/node-http-message-signatures/actions/workflows/nodejs.yml)
+
 Based on the draft specifications for HTTP Message Signatures, this library facilitates the signing
 of HTTP messages before being sent.
 
