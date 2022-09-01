@@ -43,7 +43,7 @@ export type SignOptions = SignatureInput & CommonOptions & {
 };
 
 export type VerifyOptions = CommonOptions & {
-    verifier: Verifier,
+    verifiers: { [ keyid: string ] : Verifier},
 }
 
 export type HeaderExtractionOptions = {

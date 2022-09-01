@@ -109,7 +109,6 @@ export function parseSignatureInputString(signatureInput: string): { [signatureN
         }
 
         const components = componentList.substring(1, componentList.length - 1).split(' ')
-        let keyId = undefined
         const parameters = parameterStrings.reduce((parameters: Parameters, parameterString) => {
             const [key, value] = parameterString.split('=')
             switch (key as Parameter) {
@@ -118,10 +117,7 @@ export function parseSignatureInputString(signatureInput: string): { [signatureN
                     return { ...parameters, [key]: new Date(parseInt(value)) }
                 case 'nonce':
                 case 'alg':
-                    return { ...parameters, [key]: value }
                 case 'kid':
-                    keyId = value
-                    return parameters
                 default:
                     return { ...parameters, [key]: value }
             }
@@ -133,7 +129,6 @@ export function parseSignatureInputString(signatureInput: string): { [signatureN
                 raw: signatureInputString.trim(),
                 components,
                 parameters,
-                keyId
             }
         }
     }, {})
@@ -187,11 +182,23 @@ export async function verify(request: RequestLike, opts: VerifyOptions): Promise
     const signatureInputs = parseSignatureInputString(extractHeader(request, 'signature-input'))
     const signatures = parseSignaturesString(extractHeader(request, 'signature'))
 
-    return (await Promise.all(Object.entries(signatureInputs).map(([signatureName, { components, raw }]) => {
+    return (await Promise.all(Object.entries(signatureInputs).map(([signatureName, { components, parameters, raw }]) => {
 
-        // @todo - select verifier based on keyid and alg parameters
-        return opts.verifier(
-            Buffer.from(buildSignedData(request, components!, raw)),
-            signatures[signatureName])
-    }))).reduce((acc, result) => acc && result, true)
+      const { keyid, algo } = parameters
+      if(!keyid) {
+        return false
+      }
+
+      const verifier = opts.verifiers[keyid.toString()]
+      if(!keyid) {
+        return false
+      }
+
+      const data = Buffer.from(buildSignedData(request, components!, raw))
+      const signature = signatures[signatureName]
+
+      // @todo - verify that if the algo is provided it matches the algo of the verifier
+      return verifier(data, signature)
+
+    }))).every(result => result)
 }
