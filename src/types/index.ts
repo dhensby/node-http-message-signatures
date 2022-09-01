@@ -24,15 +24,15 @@ export type Parameters = { [name: Parameter]: string | number | Date | { [Symbol
 
 
 type SignatureInput = {
-  components?: Component[],
-  parameters?: Parameters,
+    components?: Component[],
+    parameters?: Parameters,
 };
 
 type CommonOptions = {
     format: 'httpbis' | 'cavage',
 }
 export type ParsedSignatureInput = SignatureInput & {
-  raw: string
+    raw: string
 };
 
 
