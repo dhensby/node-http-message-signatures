@@ -184,7 +184,7 @@ export async function verify(request: RequestLike, opts: VerifyOptions): Promise
 
     return (await Promise.all(Object.entries(signatureInputs).map(([signatureName, { components, parameters, raw }]) => {
 
-      const { keyid, algo } = parameters
+      const { keyid, alg } = parameters!
       if(!keyid) {
         return false
       }
