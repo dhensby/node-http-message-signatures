@@ -4,8 +4,10 @@
 name: Node.js CI
 
 on:
-  - push
-  - pull_request
+  push:
+    branches-ignore:
+      - 'pulls/**'
+  pull_request:
 
 jobs:
   lint:
