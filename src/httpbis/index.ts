@@ -98,10 +98,10 @@ export function buildSignatureInputString(componentNames: Component[], parameter
 
 export function parseSignatureInputString(signatureInput: string): { [signatureName: string]: ParsedSignatureInput } {
 
-    return signatureInput.split[','].reduce((signatureInputs, signatureInputString) => {
+    return signatureInput.split(',').reduce((signatureInputs: { [signatureName: string]: ParsedSignatureInput }, signatureInputString: string) => {
 
-        const [signatureName, signatureInputValue] = signatureInputString.trim().split['=']
-        const parameterStrings: string[] = signatureInputValue.split[';']
+        const [signatureName, signatureInputValue] = signatureInputString.trim().split('=')
+        const parameterStrings: string[] = signatureInputValue.split(';')
 
         const componentList = parameterStrings.splice(0, 1)[0]
         if (!componentList.startsWith('(') || !componentList.endsWith(')')) {
@@ -142,7 +142,7 @@ export function parseSignatureInputString(signatureInput: string): { [signatureN
 export function parseSignaturesString(signaturesString: string): { [signatureName: string]: Buffer } {
     return signaturesString.split(',').reduce((signatures, signatureString) => {
 
-        const [signatureName, signature] = signatureString.trim().split['=']
+        const [signatureName, signature] = signatureString.trim().split('=')
         if (!signature.startsWith(':') || !signature.endsWith(':')) {
             throw new Error('Error parsing signature')
         }
@@ -191,7 +191,7 @@ export async function verify(request: RequestLike, opts: VerifyOptions): Promise
 
         // @todo - select verifier based on keyid and alg parameters
         return opts.verifier(
-            Buffer.from(buildSignedData(request, components, raw)),
+            Buffer.from(buildSignedData(request, components!, raw)),
             signatures[signatureName])
     }))).reduce((acc, result) => acc && result, true)
 }
