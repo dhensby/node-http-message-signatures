@@ -21,20 +21,28 @@ export type ResponseComponent = '@status' | '@request-response' | Component;
 
 export type Parameters = { [name: Parameter]: string | number | Date | { [Symbol.toStringTag]: () => string } };
 
+
+type SignatureInput = {
+    components?: Component[],
+    parameters?: Parameters,
+};
+
 type CommonOptions = {
     format: 'httpbis' | 'cavage',
 }
+export type ParsedSignatureInput = SignatureInput & {
+    raw: string
+};
 
-export type SignOptions = CommonOptions & {
-    components?: Component[],
-    parameters?: Parameters,
+
+export type SignOptions = SignatureInput & CommonOptions & {
     allowMissingHeaders?: boolean,
     keyId: string,
     signer: Signer,
 };
 
 export type VerifyOptions = CommonOptions & {
-    verifier: Verifier,
+    verifiers: { [ keyid: string ] : Verifier},
 }
 
 export type HeaderExtractionOptions = {

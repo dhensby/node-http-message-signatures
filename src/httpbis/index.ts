@@ -1,10 +1,13 @@
 import {
     Component,
     HeaderExtractionOptions,
+    Parameter,
     Parameters,
     RequestLike,
     ResponseLike,
+    ParsedSignatureInput,
     SignOptions,
+    VerifyOptions,
 } from '../types';
 import { URL } from 'url';
 
@@ -93,6 +96,77 @@ export function buildSignatureInputString(componentNames: Component[], parameter
     }).join('')}`
 }
 
+export function parseSignatureInputString(signatureInput: string): { [signatureName: string]: ParsedSignatureInput } {
+
+    return signatureInput.split(',').reduce((signatureInputs: { [signatureName: string]: ParsedSignatureInput }, signatureInputString: string) => {
+
+        const [signatureName, ...signatureInputValues] = signatureInputString.trim().split('=')
+        if (signatureInputValues.length === 0) {
+            throw new Error(`Error parsing signature input value. Signature name is '${signatureName}' and signature input value is undefined.`)
+        }
+        const signatureInputValue = signatureInputValues.join('=')
+        const parameterStrings: string[] = signatureInputValue.split(';')
+        const componentList = parameterStrings.splice(0, 1)[0]
+        if (!componentList.startsWith('(') || !componentList.endsWith(')')) {
+            throw new Error('Error parsing component list')
+        }
+
+        const componentArray = componentList.substring(1, componentList.length - 1).split(' ')
+        const components = (componentArray[0] === '') 
+        ? []
+        : componentArray.map((component) => {
+            if (!component.startsWith('"') || !component.endsWith('"')) {
+                throw new Error('Error parsing component from inner list')
+            }
+            return component.substring(1, component.length - 1)
+        })
+        const parameters = parameterStrings.reduce((parameters: Parameters, parameterString) => {
+            const [key, value] = parameterString.split('=')
+            switch (key as Parameter) {
+                case 'created':
+                case 'expires':
+                    const val = new Date(parseInt(value) * 1000)
+                    if (!val || val.toString() === 'Invalid Date') {
+                        throw new Error(`Error parsing signature input parameter '${key}'. Expected an integer timestamp but got '${value}'`)
+                    }
+                    return { ...parameters, [key]: val }
+                case 'nonce':
+                case 'alg':
+                case 'keyid':
+                    if (!value.startsWith('"') || !value.endsWith('"')) {
+                        throw new Error(`Error parsing signature input parameter '${key}'. Expected a quoted string but got '${value}'`)
+                    }
+                    return { ...parameters, [key]: value.substring(1, value.length - 1)}
+                default:
+                    return { ...parameters, [key]: value }
+            }
+        }, {})
+
+        return {
+            ...signatureInputs,
+            [signatureName.trim()]: {
+                raw: signatureInputString.trim(),
+                components,
+                parameters,
+            }
+        }
+    }, {})
+}
+
+export function parseSignaturesString(signaturesString: string): { [signatureName: string]: Buffer } {
+    return signaturesString.split(',').reduce((signatures, signatureString) => {
+        const [signatureName, ...signatureParts] = signatureString.trim().split('=')
+        if (signatureParts.length === 0) {
+            throw new Error(`Error parsing signature value. Signature name is '${signatureName}' and signature value is undefined.`)
+        }
+        const signature = signatureParts.join('=')
+        if (!signature.startsWith(':') || !signature.endsWith(':')) {
+            throw new Error(`Error parsing signature value of '${signature}'.`)
+        }
+        return { ...signatures, [signatureName.trim()]: Buffer.from(signature.substring(1, signature.length - 1), 'base64') }
+    }, {})
+}
+
 export function buildSignedData(request: RequestLike, components: Component[], signatureInputString: string): string {
     const parts = components.map((component) => {
         let value;
@@ -101,7 +175,7 @@ export function buildSignedData(request: RequestLike, components: Component[], s
         } else {
             value = extractHeader(request, component);
         }
-        return`"${component.toLowerCase()}": ${value}`
+        return `"${component.toLowerCase()}": ${value}`
     });
     parts.push(`"@signature-params": ${signatureInputString}`);
     return parts.join('\n');
@@ -123,4 +197,30 @@ export async function sign(request: RequestLike, opts: SignOptions): Promise<Req
         'Signature-Input': `sig1=${signatureInputString}`,
     });
     return request;
+}
+
+export async function verify(request: RequestLike, opts: VerifyOptions): Promise<boolean> {
+
+    const signatureInputs = parseSignatureInputString(extractHeader(request, 'signature-input'))
+    const signatures = parseSignaturesString(extractHeader(request, 'signature'))
+
+    return (await Promise.all(Object.entries(signatureInputs).map(([signatureName, { components, parameters, raw }]) => {
+
+        const { keyid, alg } = parameters!
+        if (!keyid) {
+            return false
+        }
+
+        const verifier = opts.verifiers[keyid.toString()]
+        if (!keyid) {
+            return false
+        }
+
+        const data = Buffer.from(buildSignedData(request, components!, raw))
+        const signature = signatures[signatureName]
+
+        // @todo - verify that if the algo is provided it matches the algo of the verifier
+        return verifier(data, signature)
+
+    }))).every(result => result)
 }
