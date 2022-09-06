@@ -21,6 +21,7 @@ export type ResponseComponent = '@status' | '@request-response' | Component;
 
 export type Parameters = { [name: Parameter]: string | number | Date | { [Symbol.toStringTag]: () => string } };
 
+export type DigestAlgorithm = 'sha-256' | 'sha-512'
 
 type SignatureInput = {
     components?: Component[],
@@ -34,10 +35,10 @@ export type ParsedSignatureInput = SignatureInput & {
     raw: string
 };
 
-
 export type SignOptions = SignatureInput & CommonOptions & {
     allowMissingHeaders?: boolean,
     keyId: string,
+    contentDigests?: DigestAlgorithm[] 
     signer: Signer,
 };
 

@@ -106,37 +106,39 @@ export function parseSignatureInputString(signatureInput: string): { [signatureN
         }
         const signatureInputValue = signatureInputValues.join('=')
         const parameterStrings: string[] = signatureInputValue.split(';')
-        const componentList = parameterStrings.splice(0, 1)[0]
+        const [ componentList ] = parameterStrings.splice(0, 1)
         if (!componentList.startsWith('(') || !componentList.endsWith(')')) {
             throw new Error('Error parsing component list')
         }
 
         const componentArray = componentList.substring(1, componentList.length - 1).split(' ')
         const components = (componentArray[0] === '') 
-        ? []
-        : componentArray.map((component) => {
-            if (!component.startsWith('"') || !component.endsWith('"')) {
-                throw new Error('Error parsing component from inner list')
-            }
-            return component.substring(1, component.length - 1)
-        })
+            ? []
+            : componentArray.map((component) => {
+                if (!component.startsWith('"') || !component.endsWith('"')) {
+                    throw new Error('Error parsing component from inner list')
+                }
+                return component.substring(1, component.length - 1)
+            })
         const parameters = parameterStrings.reduce((parameters: Parameters, parameterString) => {
             const [key, value] = parameterString.split('=')
             switch (key as Parameter) {
                 case 'created':
-                case 'expires':
+                case 'expires': {
                     const val = new Date(parseInt(value) * 1000)
                     if (!val || val.toString() === 'Invalid Date') {
                         throw new Error(`Error parsing signature input parameter '${key}'. Expected an integer timestamp but got '${value}'`)
                     }
                     return { ...parameters, [key]: val }
+                }
                 case 'nonce':
                 case 'alg':
-                case 'keyid':
+                case 'keyid': {
                     if (!value.startsWith('"') || !value.endsWith('"')) {
                         throw new Error(`Error parsing signature input parameter '${key}'. Expected a quoted string but got '${value}'`)
                     }
                     return { ...parameters, [key]: value.substring(1, value.length - 1)}
+                }
                 default:
                     return { ...parameters, [key]: value }
             }
@@ -148,7 +150,7 @@ export function parseSignatureInputString(signatureInput: string): { [signatureN
                 raw: signatureInputString.trim(),
                 components,
                 parameters,
-            }
+            },
         }
     }, {})
 }
@@ -206,7 +208,11 @@ export async function verify(request: RequestLike, opts: VerifyOptions): Promise
 
     return (await Promise.all(Object.entries(signatureInputs).map(([signatureName, { components, parameters, raw }]) => {
 
-        const { keyid, alg } = parameters!
+        if(!parameters) {
+            throw new Error(`No parameters for signature '${signatureName}'. Unable to determine keyid.`)
+        }
+
+        const { keyid } = parameters
         if (!keyid) {
             return false
         }
@@ -216,7 +222,7 @@ export async function verify(request: RequestLike, opts: VerifyOptions): Promise
             return false
         }
 
-        const data = Buffer.from(buildSignedData(request, components!, raw))
+        const data = Buffer.from(buildSignedData(request, components || [], raw))
         const signature = signatures[signatureName]
 
         // @todo - verify that if the algo is provided it matches the algo of the verifier
