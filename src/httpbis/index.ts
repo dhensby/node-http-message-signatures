@@ -1,15 +1,18 @@
 import {
     Component,
     HeaderExtractionOptions,
-    Parameter,
     Parameters,
     RequestLike,
     ResponseLike,
-    ParsedSignatureInput,
     SignOptions,
     VerifyOptions,
+    ParsedSignature,
+    Parameter,
 } from '../types';
+
 import { URL } from 'url';
+import { Item as StructuredDataItem, parseDictionary, ByteSequence, BareItem, Parameters as StructuredDataParameters, serializeInnerList, isByteSequence } from 'structured-headers'
+import { Algorithm, isAlgorithm } from '../algorithm';
 
 export const defaultSigningComponents: Component[] = [
     '@method',
@@ -83,90 +86,132 @@ export function extractComponent(message: RequestLike | ResponseLike, component:
     }
 }
 
+// @todo - The current API assumes that the components have no parameters. 
+// This will need an overload in future to be non-breaking and accept components with parameters 
+// that can be used for request/response binding
 export function buildSignatureInputString(componentNames: Component[], parameters: Parameters): string {
-    const components = componentNames.map((name) => `"${name.toLowerCase()}"`).join(' ');
-    return `(${components})${Object.entries(parameters).map(([parameter, value]) => {
-        if (typeof value === 'number') {
-            return `;${parameter}=${value}`;
-        } else if (value instanceof Date) {
-            return `;${parameter}=${Math.floor(value.getTime() / 1000)}`;
-        } else {
-            return `;${parameter}="${value.toString()}"`;
+    const components = componentNames.map((name) => {
+        return [name.toLowerCase(), new Map<string, BareItem>()] as StructuredDataItem
+    })
+    const params = new Map<string, BareItem>()
+    Object.entries(parameters).forEach(([key, value]) => {
+        if(value instanceof Date){
+            params.set(key, Math.floor(value.getTime() / 1000))
+        } else if(typeof value === 'number'){
+            params.set(key, value)
+        } else{
+            params.set(key, `${value}`)
         }
-    }).join('')}`
+    })
+    return serializeInnerList([components, params])
 }
 
-export function parseSignatureInputString(signatureInput: string): { [signatureName: string]: ParsedSignatureInput } {
+export function parseSignatures(message: RequestLike | ResponseLike, opts?: HeaderExtractionOptions): Map<string, ParsedSignature> {
 
-    return signatureInput.split(',').reduce((signatureInputs: { [signatureName: string]: ParsedSignatureInput }, signatureInputString: string) => {
+    const returnValue = new Map<string, ParsedSignature>()
 
-        const [signatureName, ...signatureInputValues] = signatureInputString.trim().split('=')
-        if (signatureInputValues.length === 0) {
-            throw new Error(`Error parsing signature input value. Signature name is '${signatureName}' and signature input value is undefined.`)
+    const signatureHeader = extractHeader(message, 'Signature', opts)
+    const signatureParams = extractHeader(message, 'Signature-Input', opts)
+
+    const signatureDictionary = parseDictionary(signatureHeader)
+    const signatureInputDictionary = parseDictionary(signatureParams)
+
+    // Return an empty set if there are no signatures
+    if(signatureDictionary.size === 0) {
+        return returnValue
+    }
+
+    // Extract signatures
+    const signatures = new Map<string, Buffer>()
+    signatureDictionary.forEach(([signature], signatureName) => {
+        //Expect values to be a Byte Sequence which is returned by the parser as a BareItem
+        if(Array.isArray(signature) || !isByteSequence(signature)) {
+            throw new Error(`Error parsing signature value for signature '${signatureName}'. Expected a Byte Sequence.`)
         }
-        const signatureInputValue = signatureInputValues.join('=')
-        const parameterStrings: string[] = signatureInputValue.split(';')
-        const [ componentList ] = parameterStrings.splice(0, 1)
-        if (!componentList.startsWith('(') || !componentList.endsWith(')')) {
-            throw new Error('Error parsing component list')
+        if(!signatureInputDictionary.has(signatureName)) {
+            throw new Error(`Error parsing signature '${signatureName}'. No corresponding signature input.`)
+        }
+        signatures.set(signatureName, Buffer.from(signature.base64Value, 'base64'))
+    })
+
+    signatureInputDictionary.forEach(([components, parameters], signatureName) => {
+        const value = signatures.get(signatureName)
+        if(!value) {
+            throw new Error(`Error parsing signature input for '${signatureName}'. No corresponding signature.`)
+        }        
+        // Expect components to be an Inner List + parameters which is returned from the parser as Item[]
+        if(!Array.isArray(components)) {
+            throw new Error(`Error parsing signature input for signature '${signatureName}'. Expected an Inner List.`)
         }
 
-        const componentArray = componentList.substring(1, componentList.length - 1).split(' ')
-        const components = (componentArray[0] === '') 
-            ? []
-            : componentArray.map((component) => {
-                if (!component.startsWith('"') || !component.endsWith('"')) {
-                    throw new Error('Error parsing component from inner list')
-                }
-                return component.substring(1, component.length - 1)
-            })
-        const parameters = parameterStrings.reduce((parameters: Parameters, parameterString) => {
-            const [key, value] = parameterString.split('=')
-            switch (key as Parameter) {
-                case 'created':
-                case 'expires': {
-                    const val = new Date(parseInt(value) * 1000)
-                    if (!val || val.toString() === 'Invalid Date') {
-                        throw new Error(`Error parsing signature input parameter '${key}'. Expected an integer timestamp but got '${value}'`)
-                    }
-                    return { ...parameters, [key]: val }
-                }
-                case 'nonce':
-                case 'alg':
-                case 'keyid': {
-                    if (!value.startsWith('"') || !value.endsWith('"')) {
-                        throw new Error(`Error parsing signature input parameter '${key}'. Expected a quoted string but got '${value}'`)
-                    }
-                    return { ...parameters, [key]: value.substring(1, value.length - 1)}
-                }
-                default:
-                    return { ...parameters, [key]: value }
+        const knownParameters : {
+            alg?: Algorithm,
+            created?: Date,
+            expires?: Date,
+            keyid?: string,
+            nonce?: string,
+        } = {}
+
+        const dateValue = (value: BareItem, key: string): Date => {
+            if(typeof value !== 'number'){
+                throw new Error(`Error parsing signature input parameter '${key}'. Expected an integer but got '${value}' with typeof ${typeof value}.`)
             }
-        }, {})
+            const val = new Date(value * 1000)
+            if (!val || val.toString() === 'Invalid Date') {
+                throw new Error(`Error converting signature input parameter '${key}' to a timestamp from '${value}'.`)
+            }
+            return val
+        }
+        const algorithmValue = (value: BareItem, key: string): Algorithm => {
+            if(typeof value === 'string' && isAlgorithm(value)) {
+                return value
+            }
+            throw new Error(`Error signature input parameter '${key}'. '${value}' is not a known algorithm.`)
+        }
+        parameters.forEach((value: BareItem, key: string) => {
+            switch (key as Parameter) {
+                case 'created': 
+                    knownParameters.created = dateValue(value, key)
+                    break;
+                case 'expires': 
+                    knownParameters.expires = dateValue(value, key)
+                    break;
+                case 'nonce': 
+                    knownParameters.nonce = `${value.toString()}`
+                    break;
+                case 'keyid': 
+                    knownParameters.keyid = `${value.toString()}`
+                    break;
+                case 'alg':
+                    knownParameters.alg = algorithmValue(value, key)
+                    break;
+            }
+        })
 
-        return {
-            ...signatureInputs,
-            [signatureName.trim()]: {
-                raw: signatureInputString.trim(),
+        returnValue.set(signatureName,{ 
+            input: {
                 components,
-                parameters,
+                parameters
             },
-        }
-    }, {})
-}
+            value,
+            components: components.map(([component, params], i) => {
 
-export function parseSignaturesString(signaturesString: string): { [signatureName: string]: Buffer } {
-    return signaturesString.split(',').reduce((signatures, signatureString) => {
-        const [signatureName, ...signatureParts] = signatureString.trim().split('=')
-        if (signatureParts.length === 0) {
-            throw new Error(`Error parsing signature value. Signature name is '${signatureName}' and signature value is undefined.`)
-        }
-        const signature = signatureParts.join('=')
-        if (!signature.startsWith(':') || !signature.endsWith(':')) {
-            throw new Error(`Error parsing signature value of '${signature}'.`)
-        }
-        return { ...signatures, [signatureName.trim()]: Buffer.from(signature.substring(1, signature.length - 1), 'base64') }
-    }, {})
+                // @todo - params may be used to indicate that the componenet 
+                // comes from the request when doing request/response binding
+                // See: https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-11#section-2.3
+                if(params.size > 0) {
+                    throw new Error(`Component parameters are not yet supported`)
+                }
+                if(typeof component !== 'string') {
+                    throw new Error(`Error parsing component at index '${i}'. Expected a string but got a ${typeof component}.`)
+                }
+                return component
+            }),
+            signatureParams,
+            ...knownParameters
+        })
+    })
+    return returnValue
 }
 
 export function buildSignedData(request: RequestLike, components: Component[], signatureInputString: string): string {
@@ -203,30 +248,24 @@ export async function sign(request: RequestLike, opts: SignOptions): Promise<Req
 
 export async function verify(request: RequestLike, opts: VerifyOptions): Promise<boolean> {
 
-    const signatureInputs = parseSignatureInputString(extractHeader(request, 'signature-input'))
-    const signatures = parseSignaturesString(extractHeader(request, 'signature'))
+    const signatures = parseSignatures(request)
 
-    return (await Promise.all(Object.entries(signatureInputs).map(([signatureName, { components, parameters, raw }]) => {
+    signatures.forEach(({ value, components, signatureParams, keyid, alg }, signatureName) => {
 
-        if(!parameters) {
-            throw new Error(`No parameters for signature '${signatureName}'. Unable to determine keyid.`)
-        }
-
-        const { keyid } = parameters
         if (!keyid) {
             return false
         }
 
-        const verifier = opts.verifiers[keyid.toString()]
-        if (!keyid) {
+        const verifier = opts.verifiers[keyid]
+        if (!verifier || verifier.alg !== alg) {
             return false
         }
 
-        const data = Buffer.from(buildSignedData(request, components || [], raw))
-        const signature = signatures[signatureName]
+        const data = Buffer.from(buildSignedData(request, components || [], signatureParams))
+        return verifier(data, value)
+    })
+    return (await Promise.all(Object.entries(signatures).map(([signatureName, { components, parameters, raw }]) => {
 
-        // @todo - verify that if the algo is provided it matches the algo of the verifier
-        return verifier(data, signature)
 
     }))).every(result => result)
 }

@@ -1,5 +1,5 @@
 import { Component, Parameters, RequestLike } from '../../src';
-import { buildSignatureInputString, buildSignedData, extractComponent, extractHeader, parseSignatureInputString, parseSignaturesString } from '../../src/httpbis';
+import { buildSignatureInputString, buildSignedData, extractComponent, extractHeader, parseSignatures } from '../../src/httpbis';
 import { expect } from 'chai';
 
 describe('httpbis', () => {
@@ -188,32 +188,71 @@ describe('httpbis', () => {
         });
     });
 
-    describe('.parseSignatureInputString', () => {
+    describe('.parseSignatures', () => {
         it('parses minimal example', () => {
-            const input = 'sig1=();created=1618884475;keyid="test-key-rsa-pss";alg="rsa-pss-sha512"'
-            const { sig1 } = parseSignatureInputString(input)
-            const { components, parameters } = sig1
+            const testRequest: RequestLike = {
+                method: 'POST',
+                url: 'https://example.com/foo?param=value&pet=dog',
+                headers: {
+                    'Host': 'example.com',
+                    'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
+                    'Content-Type': 'application/json',
+                    'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
+                    'Content-Length': '18',
+                    'Signature-Input': 'sig1=();created=1618884475;keyid="test-key-rsa-pss";alg="rsa-pss-sha512"',
+                    'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
+                },
+                body: '{"hello": "world"}',
+                } 
+            const signature = parseSignatures(testRequest).get('sig1')!
+            const { components } = signature
             expect(components).to.be.empty
-            expect(parameters).to.deep.include({
+            expect(signature).to.deep.include({
                 created: new Date(1618884475000),
                 keyid: 'test-key-rsa-pss',
                 alg: 'rsa-pss-sha512',
             });
         });
         it('parses selective example', () => {
-            const input = 'sig1=("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"'
-            const { sig1 } = parseSignatureInputString(input)
-            const { components, parameters } = sig1
+            const testRequest: RequestLike = {
+                method: 'POST',
+                url: 'https://example.com/foo?param=value&pet=dog',
+                headers: {
+                    'Host': 'example.com',
+                    'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
+                    'Content-Type': 'application/json',
+                    'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
+                    'Content-Length': '18',
+                    'Signature-Input': 'sig1=("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"',
+                    'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
+                },
+                body: '{"hello": "world"}',
+            } 
+            const signature = parseSignatures(testRequest).get('sig1')!
+            const { components } = signature
             expect(components).to.be.an('array').that.has.members(['@authority', 'content-type'])
-            expect(parameters).to.deep.include({
+            expect(signature).to.deep.include({
                 created: new Date(1618884475000),
                 keyid: 'test-key-rsa-pss',
             });
         });
         it('parses full example', () => {
-            const input = 'sig1=("date" "@method" "@path" "@query" "@authority" "content-type" "digest" "content-length");created=1618884475;keyid="test-key-rsa-pss"'
-            const { sig1 } = parseSignatureInputString(input)
-            const { components, parameters } = sig1
+            const testRequest: RequestLike = {
+                method: 'POST',
+                url: 'https://example.com/foo?param=value&pet=dog',
+                headers: {
+                    'Host': 'example.com',
+                    'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
+                    'Content-Type': 'application/json',
+                    'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
+                    'Content-Length': '18',
+                    'Signature-Input': 'sig1=("date" "@method" "@path" "@query" "@authority" "content-type" "digest" "content-length");created=1618884475;keyid="test-key-rsa-pss"',
+                    'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
+                },
+                body: '{"hello": "world"}',
+            } 
+            const signature = parseSignatures(testRequest).get('sig1')!
+            const { components } = signature
             expect(components).to.be.an('array').that.has.members([
                 'date',
                 '@method',
@@ -224,19 +263,31 @@ describe('httpbis', () => {
                 'digest',
                 'content-length',
             ]);
-            expect(parameters).to.deep.include({
+            expect(signature).to.deep.include({
                 created: new Date(1618884475000),
                 keyid: 'test-key-rsa-pss',
             });
         });
-    });
 
-    describe('.parseSignatureString', () => {
-        it('parses a single example', () => {
-            const input = 'sig-b26=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
-            const signatures = parseSignaturesString(input)
-            expect(signatures['sig-b26'].toString('hex')).to.equal('c2a700a9b9982768e2da095f00c691cb882bb98627c769c414dd8737a8eb9c39d008ad6ed3619bd38bfd10383050f8aee00d30eafb90bf9948a7958fa412910b')
+        it('parses a signature', () => {
+            const testRequest: RequestLike = {
+                method: 'POST',
+                url: 'https://example.com/foo?param=value&pet=dog',
+                headers: {
+                    'Host': 'example.com',
+                    'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
+                    'Content-Type': 'application/json',
+                    'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
+                    'Content-Length': '18',
+                    'Signature-Input': 'sig1=("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"',
+                    'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
+                },
+                body: '{"hello": "world"}',
+            } 
+            const signature = parseSignatures(testRequest).get('sig1')!
+            expect(signature.value.toString('hex')).to.equal('c2a700a9b9982768e2da095f00c691cb882bb98627c769c414dd8737a8eb9c39d008ad6ed3619bd38bfd10383050f8aee00d30eafb90bf9948a7958fa412910b')
         });
+
     });
 
 });

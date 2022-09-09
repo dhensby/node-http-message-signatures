@@ -1,4 +1,8 @@
-import { Signer, Verifier } from '../algorithm';
+import { 
+    Parameters as StructuredDataParameters,
+    Item as StructuredDataItem
+} from 'structured-headers';
+import { Algorithm, Signer, Verifier } from '../algorithm';
 
 type HttpLike = {
     method: string,
@@ -23,19 +27,28 @@ export type Parameters = { [name: Parameter]: string | number | Date | { [Symbol
 
 export type DigestAlgorithm = 'sha-256' | 'sha-512'
 
-type SignatureInput = {
-    components?: Component[],
-    parameters?: Parameters,
-};
-
 type CommonOptions = {
     format: 'httpbis' | 'cavage',
 }
-export type ParsedSignatureInput = SignatureInput & {
-    raw: string
-};
 
-export type SignOptions = SignatureInput & CommonOptions & {
+export type ParsedSignature = {
+    input: {
+        components: StructuredDataItem[],
+        parameters: StructuredDataParameters,
+    }
+    value: Buffer,
+    components: Component[],
+    signatureParams: string,
+    alg?: Algorithm,
+    created?: Date,
+    expires?: Date,
+    keyid?: string,
+    nonce?: string,
+}
+
+export type SignOptions = CommonOptions & {
+    components?: Component[],
+    parameters?: Parameters,
     allowMissingHeaders?: boolean,
     keyId: string,
     contentDigests?: DigestAlgorithm[] 

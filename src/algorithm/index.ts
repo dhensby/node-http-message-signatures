@@ -4,6 +4,8 @@ import {
     createSign,
     createVerify,
     KeyLike,
+    KeyObject,
+    sign,
     SignKeyObjectInput,
     SignPrivateKeyInput,
     timingSafeEqual,
@@ -12,7 +14,20 @@ import {
 } from 'crypto';
 import { RSA_PKCS1_PADDING, RSA_PKCS1_PSS_PADDING } from 'constants';
 
-export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'hmac-sha256' | 'rsa-pss-sha512';
+export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'hmac-sha256' | 'rsa-pss-sha512' | 'ed25519';
+
+export function isAlgorithm(alg: string): alg is Algorithm {
+    switch(alg as Algorithm) {
+        case 'rsa-v1_5-sha256':
+        case 'ecdsa-p256-sha256':
+        case 'hmac-sha256':
+        case 'rsa-pss-sha512':
+        case 'ed25519':
+            return true
+        default:
+            return false
+    }
+}
 
 export interface Signer {
     (data: BinaryLike): Promise<Buffer>,
@@ -22,6 +37,19 @@ export interface Signer {
 export interface Verifier {
     (data: BinaryLike, signature: BinaryLike): Promise<boolean>,
     alg: Algorithm,
+    keyid?: string
+}
+interface Ed25519PrivateKeyObject extends KeyObject {
+    type: 'private'
+    asymmetricKeyType: 'ed25519'
+}
+interface Ed25519SignKeyObjectInput extends SignKeyObjectInput {
+    key: Ed25519PrivateKeyObject
+}
+
+function isEd25519PrivateKey(key: BinaryLike | KeyLike | SignKeyObjectInput | SignPrivateKeyInput): key is Ed25519PrivateKeyObject | Ed25519SignKeyObjectInput {
+    const keyObj = (typeof key === 'object' && "key" in key) ? key.key : key
+    return (typeof keyObj === 'object' && 'asymmetricKeyType' in keyObj && keyObj.asymmetricKeyType === 'ed25519')
 }
 
 export function createSigner(alg: Algorithm, key: BinaryLike | KeyLike | SignKeyObjectInput | SignPrivateKeyInput): Signer {
@@ -45,6 +73,13 @@ export function createSigner(alg: Algorithm, key: BinaryLike | KeyLike | SignKey
         case 'ecdsa-p256-sha256':
             signer = async (data: BinaryLike) => createSign('sha256').update(data).sign(key as KeyLike);
             break;
+        case 'ed25519':
+            if(!isEd25519PrivateKey(key)){
+                throw new Error('Invalid key for ed25519 signer.')
+            }
+            signer = async (data: BinaryLike) => { sign: async (data: BinaryLike): Promise<Buffer> => {
+                return sign('ed25519', typeof data === 'string' ? Buffer.from(data) : data, key)
+            }}
         default:
             throw new Error(`Unsupported signing algorithm ${alg}`);
     }
