@@ -149,7 +149,6 @@ describe('httpbis', () => {
                 'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
                 'Content-Length': '18',
             },
-            body: '{"hello": "world"}',
         };
         it('constructs minimal example', () => {
             const components: Component[] = [];
