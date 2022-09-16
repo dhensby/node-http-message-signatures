@@ -4,7 +4,6 @@ type HttpLike = {
     method: string,
     url: string,
     headers: Record<string, { toString(): string } | string | string[] | undefined>,
-    body?: string | Buffer,
 }
 
 export type RequestLike = HttpLike;
