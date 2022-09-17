@@ -25,11 +25,10 @@ export function extractHeader({ headers }: RequestLike | ResponseLike, header: s
     if (!allowMissing && !key) {
         throw new Error(`Unable to extract header "${header}" from message`);
     }
-    let val = key ? headers[key] ?? '' : '';
-    if (Array.isArray(val)) {
-        val = val.join(', ');
-    }
-    return val.toString().replace(/\s+/g, ' ');
+    const val = key ? headers[key] ?? '' : '';
+    return (!Array.isArray(val) ? [val] : val).map((v) => {
+        return v.toString().trim().replace(/\n+\s*/g, ' ');
+    }).join(', ');
 }
 
 function populateDefaultParameters(parameters: Parameters) {

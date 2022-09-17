@@ -5,22 +5,28 @@ import { expect } from 'chai';
 describe('httpbis', () => {
     describe('.extractHeader', () => {
         const headers = {
-            'testheader': 'test',
-            'test-header-1': 'test1',
-            'Test-Header-2': 'test2',
-            'test-Header-3': 'test3',
-            'TEST-HEADER-4': 'test4',
+            'Host': 'www.example.com',
+            'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
+            'X-OWS-Header': '  Leading and trailing whitespace. ',
+            'X-Obs-Fold-Header': 'Obsolete\nline folding.',
+            'Cache-Control': ['max-age=60', '   must-revalidate'],
+            'Example-Dict': ' a=1,    b=2;x=1;y=2,   c=(a   b   c)',
         };
-        Object.entries(headers).forEach(([headerName, expectedValue]) => {
-            it(`successfully extracts a matching header (${headerName})`, () => {
-                expect(extractHeader({ headers } as unknown as RequestLike, headerName)).to.equal(expectedValue);
-            });
-            it(`successfully extracts a lower cased header (${headerName})`, () => {
-                expect(extractHeader({ headers } as unknown as RequestLike, headerName.toLowerCase())).to.equal(expectedValue);
-            });
-            it(`successfully extracts an upper cased header (${headerName})`, () => {
-                expect(extractHeader({ headers } as unknown as RequestLike, headerName.toUpperCase())).to.equal(expectedValue);
-            });
+        it('correctly extracts headers', () => {
+            const expected = {
+                'host': 'www.example.com',
+                'date': 'Tue, 20 Apr 2021 02:07:56 GMT',
+                'x-ows-header': 'Leading and trailing whitespace.',
+                'x-obs-fold-header': 'Obsolete line folding.',
+                'cache-control': 'max-age=60, must-revalidate',
+                'example-dict': 'a=1,    b=2;x=1;y=2,   c=(a   b   c)',
+            };
+            const parsed = Object.keys(headers).reduce((accum, name) => {
+                return Object.assign(accum, {
+                    [name.toLowerCase()]: extractHeader({ headers } as unknown as RequestLike, name),
+                });
+            }, {});
+            expect(parsed).to.deep.equal(expected);
         });
         it('allows missing headers to return by default', () => {
             expect(extractHeader({ headers } as unknown as RequestLike, 'missing')).to.equal('');
