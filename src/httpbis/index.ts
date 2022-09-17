@@ -27,7 +27,7 @@ export function extractHeader({ headers }: RequestLike | ResponseLike, header: s
     }
     const val = key ? headers[key] ?? '' : '';
     return (!Array.isArray(val) ? [val] : val).map((v) => {
-        return v.toString().trim().replace(/\n+\s*/g, ' ');
+        return v.toString().trim().replace(/\n+\s*/g, ' ') || ' ';
     }).join(', ');
 }
 

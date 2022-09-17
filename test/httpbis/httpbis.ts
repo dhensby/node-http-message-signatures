@@ -28,14 +28,18 @@ describe('httpbis', () => {
             }, {});
             expect(parsed).to.deep.equal(expected);
         });
+        it('extracts an empty header', () => {
+            const parsed = extractHeader({ headers: { 'x-empty-header': '' } } as unknown as RequestLike, 'x-empty-header');
+            expect(parsed).to.equal(' ');
+        });
         it('allows missing headers to return by default', () => {
-            expect(extractHeader({ headers } as unknown as RequestLike, 'missing')).to.equal('');
+            expect(extractHeader({ headers } as unknown as RequestLike, 'missing')).to.equal(' ');
         });
         it('throws on missing headers', () => {
             expect(() => extractHeader({ headers } as unknown as RequestLike, 'missing', { allowMissing: false })).to.throw(Error, 'Unable to extract header "missing" from message');
         });
         it('does not throw on missing headers', () => {
-            expect(extractHeader({ headers } as unknown as RequestLike, 'missing', { allowMissing: true })).to.equal('');
+            expect(extractHeader({ headers } as unknown as RequestLike, 'missing', { allowMissing: true })).to.equal(' ');
         });
     });
     describe('.extractComponent', () => {
