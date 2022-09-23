@@ -201,9 +201,8 @@ describe('httpbis', () => {
                     'Content-Length': '18',
                     'Signature-Input': 'sig1=();created=1618884475;keyid="test-key-rsa-pss";alg="rsa-pss-sha512"',
                     'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
-                },
-                body: '{"hello": "world"}',
-                } 
+                }
+            } 
             const signature = parseSignatures(testRequest).get('sig1')!
             const { components } = signature
             expect(components).to.be.empty
@@ -225,8 +224,7 @@ describe('httpbis', () => {
                     'Content-Length': '18',
                     'Signature-Input': 'sig1=("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"',
                     'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
-                },
-                body: '{"hello": "world"}',
+                }
             } 
             const signature = parseSignatures(testRequest).get('sig1')!
             const { components } = signature
@@ -248,8 +246,7 @@ describe('httpbis', () => {
                     'Content-Length': '18',
                     'Signature-Input': 'sig1=("date" "@method" "@path" "@query" "@authority" "content-type" "digest" "content-length");created=1618884475;keyid="test-key-rsa-pss"',
                     'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
-                },
-                body: '{"hello": "world"}',
+                }
             } 
             const signature = parseSignatures(testRequest).get('sig1')!
             const { components } = signature
@@ -281,8 +278,7 @@ describe('httpbis', () => {
                     'Content-Length': '18',
                     'Signature-Input': 'sig1=("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"',
                     'Signature': 'sig1=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:'
-                },
-                body: '{"hello": "world"}',
+                }
             } 
             const signature = parseSignatures(testRequest).get('sig1')!
             expect(signature.value.toString('hex')).to.equal('c2a700a9b9982768e2da095f00c691cb882bb98627c769c414dd8737a8eb9c39d008ad6ed3619bd38bfd10383050f8aee00d30eafb90bf9948a7958fa412910b')
