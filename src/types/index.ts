@@ -25,8 +25,6 @@ export type ResponseComponent = '@status' | '@request-response' | Component;
 
 export type Parameters = { [name: Parameter]: string | number | Date | { [Symbol.toStringTag]: () => string } };
 
-export type DigestAlgorithm = 'sha-256' | 'sha-512'
-
 type CommonOptions = {
     format: 'httpbis' | 'cavage',
 }
@@ -51,7 +49,6 @@ export type SignOptions = CommonOptions & {
     parameters?: Parameters,
     allowMissingHeaders?: boolean,
     keyId: string,
-    contentDigests?: DigestAlgorithm[] 
     signer: Signer,
 };
 
