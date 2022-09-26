@@ -9,13 +9,13 @@ of HTTP messages before being sent.
 
 Two specifications are supported by this library:
 
-1. [HTTPBIS](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-06#appendix-B.2)
-2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures-12)
+1. [HTTPbis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures)
+2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures)
 
 ## Approach
 
-As the cavage specification is now expired and superseded by the HTTPBIS one, this library takes a
-"HTTPBIS-first" approach. This means that most support and maintenance will go into the HTTPBIS
+As the cavage specification is now expired and superseded by the HTTPbis one, this library takes a
+"HTTPbis-first" approach. This means that most support and maintenance will go into the HTTPbis
 implementation and syntax. The syntax is then back-ported to the Cavage implementation as much as
 possible.
 
