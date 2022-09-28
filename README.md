@@ -10,14 +10,19 @@ of HTTP messages before being sent.
 Two specifications are supported by this library:
 
 1. [HTTPbis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures)
-2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures)
+2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) and subsequent [RichAnna](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
 
 ## Approach
 
-As the cavage specification is now expired and superseded by the HTTPbis one, this library takes a
+As the Cavage/RichAnna specification is now expired and superseded by the HTTPbis one, this library takes a
 "HTTPbis-first" approach. This means that most support and maintenance will go into the HTTPbis
-implementation and syntax. The syntax is then back-ported to the Cavage implementation as much as
-possible.
+implementation and syntax. The syntax is then back-ported to the as much as possible.
+
+## Caveats
+
+The Cavage/RichAnna specifications have changed over time, introducing new features. The aim is to support
+the [latest version of the specification](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
+and not to try to support each version in isolation.
 
 ## Examples
 

@@ -12,7 +12,7 @@ import {
 } from 'crypto';
 import { RSA_PKCS1_PADDING, RSA_PKCS1_PSS_PADDING } from 'constants';
 
-export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'hmac-sha256' | 'rsa-pss-sha512';
+export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'hmac-sha256' | 'rsa-pss-sha512' | string;
 
 export interface Signer {
     (data: BinaryLike): Promise<Buffer>,
@@ -38,6 +38,13 @@ export function createSigner(alg: Algorithm, key: BinaryLike | KeyLike | SignKey
             break;
         case 'rsa-v1_5-sha256':
             signer = async (data: BinaryLike) => createSign('sha256').update(data).sign({
+                key,
+                padding: RSA_PKCS1_PADDING,
+            } as SignPrivateKeyInput);
+            break;
+        case 'rsa-v1_5-sha1':
+            // this is legacy for cavage
+            signer = async (data: BinaryLike) => createSign('sha1').update(data).sign({
                 key,
                 padding: RSA_PKCS1_PADDING,
             } as SignPrivateKeyInput);
