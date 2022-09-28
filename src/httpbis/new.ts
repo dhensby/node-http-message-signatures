@@ -9,6 +9,8 @@ import {
     serializeDictionary,
     parseList,
     Parameters,
+    isInnerList,
+    isByteSequence,
 } from 'structured-headers';
 import { Dictionary, parseHeader } from '../structured-header';
 
@@ -24,6 +26,7 @@ export interface Response {
 }
 
 export type Signer = (data: Buffer) => Promise<Buffer>;
+export type Verifier = (data: Buffer, signature: Buffer, parameters: SignatureParameters) => Promise<boolean | null>;
 
 export interface SigningKey {
     id?: string;
@@ -31,14 +34,14 @@ export interface SigningKey {
     sign: Signer;
 }
 
-export interface SigningParameters {
+export interface SignatureParameters {
     created?: Date | null;
     expires?: Date;
     nonce?: string;
     alg?: string;
     keyid?: string;
     context?: string;
-    [param: string]: string | Date | null | undefined;
+    [param: string]: Date | number | string | null | undefined;
 }
 
 const defaultParams = [
@@ -48,12 +51,22 @@ const defaultParams = [
     'expires',
 ];
 
-export interface SigningConfig {
+export interface SignConfig {
     key: SigningKey;
     name?: string;
     params?: string[];
     fields?: string[];
-    paramValues?: SigningParameters,
+    paramValues?: SignatureParameters,
+}
+
+export interface VerifyConfig {
+    verifier: Verifier;
+    notAfter?: Date | number;
+    maxAge?: number;
+    tolerance?: number;
+    requiredParams?: string[];
+    requiredFields?: string[];
+    all?: boolean;
 }
 
 function isRequest(obj: Request | Response): obj is Request {
@@ -226,15 +239,15 @@ export function extractHeader(header: string, { headers }: Request | Response, r
     return [values.map((val) => val.trim().replace(/\n\s*/gm, ' ')).join(', ')];
 }
 
-export function createSignatureBase(config: SigningConfig, res: Response, req?: Request): [string, string[]][];
-export function createSignatureBase(config: SigningConfig, req: Request): [string, string[]][];
+export function createSignatureBase(fields: string[], res: Response, req?: Request): [string, string[]][];
+export function createSignatureBase(fields: string[], req: Request): [string, string[]][];
 
-export function createSignatureBase(config: SigningConfig, res: Request | Response, req?: Request): [string, string[]][] {
-    return (config.fields ?? []).reduce<[string, string[]][]>((base, fieldName) => {
+export function createSignatureBase(fields: string[], res: Request | Response, req?: Request): [string, string[]][] {
+    return (fields).reduce<[string, string[]][]>((base, fieldName) => {
         const [field, params] = parseItem(quoteString(fieldName));
         const lcFieldName = field.toString().toLowerCase();
         if (lcFieldName !== '@signature-params') {
-            const value = fieldName.startsWith('@') ? deriveComponent(fieldName, res as Response, req) : extractHeader(fieldName, res as Response, req);
+            const value = lcFieldName.startsWith('@') ? deriveComponent(fieldName, res as Response, req) : extractHeader(fieldName, res as Response, req);
             base.push([serializeItem([lcFieldName, params]), value]);
         }
         return base;
@@ -248,7 +261,7 @@ export function formatSignatureBase(base: [string, string[]][]): string {
     }).join('\n');
 }
 
-export function createSigningParameters(config: SigningConfig): Parameters {
+export function createSigningParameters(config: SignConfig): Parameters {
     const now = new Date();
     return (config.params ?? defaultParams).reduce<Parameters>((params, paramName) => {
         let value: string | number = '';
@@ -340,12 +353,12 @@ export function augmentHeaders(headers: Record<string, string | string[]>, signa
     };
 }
 
-export async function signMessage<T extends Response = Response, U extends Request = Request>(config: SigningConfig, res: T, req?: U): Promise<T>;
-export async function signMessage<T extends Request = Request>(config: SigningConfig, req: T): Promise<T>;
+export async function signMessage<T extends Response = Response, U extends Request = Request>(config: SignConfig, res: T, req?: U): Promise<T>;
+export async function signMessage<T extends Request = Request>(config: SignConfig, req: T): Promise<T>;
 
-export async function signMessage<T extends Request | Response = Request | Response, U extends Request = Request>(config: SigningConfig, message: T, req?: U): Promise<T> {
+export async function signMessage<T extends Request | Response = Request | Response, U extends Request = Request>(config: SignConfig, message: T, req?: U): Promise<T> {
     const signingParameters = createSigningParameters(config);
-    const signatureBase = createSignatureBase(config, message as Response, req);
+    const signatureBase = createSignatureBase(config?.fields ?? [], message as Response, req);
     const signatureInput = serializeList([
         [
             signatureBase.map(([item]) => parseItem(item)),
@@ -360,4 +373,111 @@ export async function signMessage<T extends Request | Response = Request | Respo
         ...message,
         headers: augmentHeaders({...message.headers}, signature, signatureInput, config.name),
     };
+}
+
+export async function verifyMessage(config: VerifyConfig, response: Response, request?: Request): Promise<boolean | null>;
+export async function verifyMessage(config: VerifyConfig, request: Request): Promise<boolean | null>;
+
+export async function verifyMessage(config: VerifyConfig, message: Request | Response, req?: Request): Promise<boolean | null> {
+    const { signatures, signatureInputs } = Object.entries(message.headers).reduce<{ signatures?: DictionaryType; signatureInputs?: DictionaryType }>((accum, [name, value]) => {
+        switch (name.toLowerCase()) {
+            case 'signature':
+                return Object.assign(accum, {
+                    signatures: parseDictionary(Array.isArray(value) ? value.join(', ') : value),
+                });
+            case 'signature-input':
+                return Object.assign(accum, {
+                    signatureInputs: parseDictionary(Array.isArray(value) ? value.join(', ') : value),
+                });
+            default:
+                return accum;
+        }
+    }, {});
+    // no signatures means an indeterminate result
+    if (!signatures?.size && !signatureInputs?.size) {
+        return null;
+    }
+    // a missing header means we can't verify the signatures
+    if (!signatures?.size || !signatureInputs?.size) {
+        throw new Error('Incomplete signature headers');
+    }
+    const now = Math.floor(Date.now() / 1000);
+    const tolerance = config.tolerance ?? 0;
+    const notAfter = config.notAfter instanceof Date ? Math.floor(config.notAfter.getTime() / 1000) : config.notAfter ?? now;
+    const maxAge = config.maxAge ?? null;
+    const requiredParams = config.requiredParams ?? [];
+    const requiredFields = config.requiredFields ?? [];
+    return Array.from(signatureInputs.entries()).reduce<Promise<boolean | null>>(async (prev, [name, input]) => {
+        const result: Error | boolean | null = await prev.catch((e) => e);
+        if (!config.all && result === true) {
+            return result;
+        }
+        if (config.all && result !== true && result !== null) {
+            if (result instanceof Error) {
+                throw result;
+            }
+            return result;
+        }
+        if (!isInnerList(input)) {
+            throw new Error('Malformed signature input');
+        }
+        const hasRequiredParams = requiredParams.every((param) => input[1].has(param));
+        if (!hasRequiredParams) {
+            return false;
+        }
+        // this could be tricky, what if we say "@method" but there is "@method;req"
+        const hasRequiredFields = requiredFields.every((field) => input[0].some(([fieldName]) => fieldName === field));
+        if (!hasRequiredFields) {
+            return false;
+        }
+        if (input[1].has('created')) {
+            const created = input[1].get('created') as number - tolerance;
+            // maxAge overrides expires.
+            // signature is older than maxAge
+            if (maxAge && created - now > maxAge) {
+                return false;
+            }
+            // created after the allowed time (ie: created in the future)
+            if (created > notAfter) {
+                return false;
+            }
+        }
+        if (input[1].has('expires')) {
+            const expires = input[1].get('expires') as number + tolerance;
+            // expired signature
+            if (expires > now) {
+                return false;
+            }
+        }
+        // now look to verify the signature! Build the expected "signing base" and verify it!
+        const signingBase = createSignatureBase(input[0].map((item) => serializeItem(item)), message as Response, req);
+        signingBase.push(['"@signature-params"', [serializeList([input])]]);
+        const base = formatSignatureBase(signingBase);
+        const signature = signatures.get(name);
+        if (!signature) {
+            throw new Error('No signature found for inputs');
+        }
+        if (!isByteSequence(signature[0] as BareItem)) {
+            throw new Error('Malformed signature');
+        }
+        return config.verifier(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), Array.from(input[1].entries()).reduce((params, [key, value]) => {
+            let val: Date | number | string;
+            switch (key.toLowerCase()) {
+                case 'created':
+                case 'expires':
+                    val = new Date((value as number) * 1000);
+                    break;
+                default: {
+                    if (typeof value === 'string' || typeof value=== 'number') {
+                        val = value;
+                    } else {
+                        val = value.toString();
+                    }
+                }
+            }
+            return Object.assign(params, {
+                [key]: val,
+            });
+        }, {}));
+    }, Promise.resolve(null));
 }

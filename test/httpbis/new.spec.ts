@@ -448,17 +448,14 @@ describe('httpbis', () => {
                 },
             };
             it('creates a signature base from raw headers', () => {
-                expect(httpbis.createSignatureBase({
-                    name: 'sig',
-                    fields: [
-                        'host',
-                        'date',
-                        'x-ows-header',
-                        'x-obs-fold-header',
-                        'cache-control',
-                        'example-dict',
-                    ],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase([
+                    'host',
+                    'date',
+                    'x-ows-header',
+                    'x-obs-fold-header',
+                    'cache-control',
+                    'example-dict',
+                ], request)).to.deep.equal([
                     ['"host"', ['www.example.com']],
                     ['"date"', ['Tue, 20 Apr 2021 02:07:56 GMT']],
                     ['"x-ows-header"', ['Leading and trailing whitespace.']],
@@ -468,35 +465,26 @@ describe('httpbis', () => {
                 ]);
             });
             it('extracts an empty header', () => {
-                expect(httpbis.createSignatureBase({
-                    name: 'sig',
-                    fields: [
-                        'X-Empty-Header',
-                    ],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase([
+                    'X-Empty-Header',
+                ], request)).to.deep.equal([
                     ['"x-empty-header"', ['']],
                 ]);
             });
             it('extracts strict formatted headers', () => {
-                expect(httpbis.createSignatureBase({
-                    name: 'sig',
-                    fields: [
-                        'example-dict;sf',
-                    ],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase([
+                    'example-dict;sf',
+                ], request)).to.deep.equal([
                     ['"example-dict";sf', ['a=1, b=2;x=1;y=2, c=(a b c)']],
                 ]);
             });
             it('extracts keys from dictionary headers', () => {
-                expect(httpbis.createSignatureBase({
-                    name: 'sig',
-                    fields: [
-                        'example-dict;key="a"',
-                        'example-dict;key="d"',
-                        'example-dict;key="b"',
-                        'example-dict;key="c"',
-                    ],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase([
+                    'example-dict;key="a"',
+                    'example-dict;key="d"',
+                    'example-dict;key="b"',
+                    'example-dict;key="c"',
+                ], {
                     ...request,
                     headers: {
                         ...request.headers,
@@ -510,12 +498,9 @@ describe('httpbis', () => {
                 ]);
             });
             it('extracts binary formatted headers', () => {
-                expect(httpbis.createSignatureBase({
-                    name: 'sig',
-                    fields: [
-                        'example-header;bs',
-                    ],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase([
+                    'example-header;bs',
+                ], {
                     ...request,
                     headers: {
                         'Example-Header': ['value, with, lots', 'of, commas'],
@@ -523,12 +508,9 @@ describe('httpbis', () => {
                 } as httpbis.Request)).to.deep.equal([
                     ['"example-header";bs', [':dmFsdWUsIHdpdGgsIGxvdHM=:, :b2YsIGNvbW1hcw==:']],
                 ]);
-                expect(httpbis.createSignatureBase({
-                    name: 'sig',
-                    fields: [
-                        'example-header;bs',
-                    ],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase([
+                    'example-header;bs',
+                ], {
                     ...request,
                     headers: {
                         'Example-Header': ['value, with, lots, of, commas'],
@@ -547,67 +529,49 @@ describe('httpbis', () => {
                 },
             };
             it('derives @method', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@method'],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase(['@method'], request)).to.deep.equal([
                     ['"@method"', ['POST']],
                 ]);
             });
             it('derives @target-uri', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@target-uri'],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase(['@target-uri'], request)).to.deep.equal([
                     ['"@target-uri"', ['https://www.example.com/path?param=value']],
                 ]);
             });
             it('derives @authority', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@authority'],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase(['@authority'], request)).to.deep.equal([
                     ['"@authority"', ['www.example.com']],
                 ]);
             });
             it('derives @scheme', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@scheme'],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase(['@scheme'], request)).to.deep.equal([
                     ['"@scheme"', ['https']],
                 ]);
             });
             it('derives @request-target', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@request-target'],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase(['@request-target'], request)).to.deep.equal([
                     ['"@request-target"', ['/path?param=value']],
                 ]);
             });
             it('derives @path', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@path'],
-                } as httpbis.SigningConfig, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase(['@path'], request)).to.deep.equal([
                     ['"@path"', ['/path']],
                 ]);
             });
             it('derives @query', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@query'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@query'], {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman',
                 })).to.deep.equal([
                     ['"@query"', ['?param=value&foo=bar&baz=batman']],
                 ]);
-                expect(httpbis.createSignatureBase({
-                    fields: ['@query'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@query'], {
                     ...request,
                     url: 'https://www.example.com/path?queryString',
                 })).to.deep.equal([
                     ['"@query"', ['?queryString']],
                 ]);
-                expect(httpbis.createSignatureBase({
-                    fields: ['@query'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@query'], {
                     ...request,
                     url: 'https://www.example.com/path',
                 })).to.deep.equal([
@@ -615,25 +579,19 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @query-param', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@query-param;name="baz"'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@query-param;name="baz"'], {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     ['"@query-param";name="baz"', ['batman']],
                 ]);
-                expect(httpbis.createSignatureBase({
-                    fields: ['@query-param;name="qux"'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@query-param;name="qux"'], {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     ['"@query-param";name="qux"', ['']],
                 ]);
-                expect(httpbis.createSignatureBase({
-                    fields: ['@query-param;name="param"'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@query-param;name="param"'], {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
@@ -641,9 +599,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @status', () => {
-                expect(httpbis.createSignatureBase({
-                    fields: ['@status'],
-                } as httpbis.SigningConfig, {
+                expect(httpbis.createSignatureBase(['@status'], {
                     status: 200,
                     headers: {},
                 }, request)).to.deep.equal([
@@ -664,19 +620,14 @@ describe('httpbis', () => {
                 },
             };
             it('produces a signature base for a request', () => {
-                expect(httpbis.createSignatureBase({
-                    key: {
-                        sign: () => Promise.resolve(Buffer.from('')),
-                    },
-                    fields: [
-                        '@method',
-                        '@authority',
-                        '@path',
-                        'content-digest',
-                        'content-length',
-                        'content-type',
-                    ],
-                }, request)).to.deep.equal([
+                expect(httpbis.createSignatureBase([
+                    '@method',
+                    '@authority',
+                    '@path',
+                    'content-digest',
+                    'content-length',
+                    'content-type',
+                ], request)).to.deep.equal([
                     ['"@method"', ['POST']],
                     ['"@authority"', ['example.com']],
                     ['"@path"', ['/foo']],
@@ -1102,6 +1053,128 @@ describe('httpbis', () => {
                     '"@method";req: POST\n' +
                     '"@signature-params": ("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"'
                 ));
+            });
+        });
+    });
+    describe('.verifyMessage', () => {
+        describe('requests', () => {
+            const request: httpbis.Request = {
+                method: 'post',
+                url: 'https://example.com/foo?param=Value&Pet=dog',
+                headers: {
+                    'Host': 'example.com',
+                    'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
+                    'Content-Type': 'application/json',
+                    'Content-Digest': 'sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:',
+                    'Content-Length': '18',
+                    'Signature-Input': 'sig1=("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss"',
+                    'Signature': 'sig1=:HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRalVc/g==:',
+                },
+            };
+            it('verifies a request', async () => {
+                const verifierStub = stub().resolves(true);
+                const valid = await httpbis.verifyMessage({
+                    verifier: verifierStub,
+                }, request);
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+                expect(verifierStub).to.have.been.calledOnceWithExactly(
+                    Buffer.from('"@method": POST\n' +
+                        '"@authority": example.com\n' +
+                        '"@path": /foo\n' +
+                        '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
+                        '"content-length": 18\n' +
+                        '"content-type": application/json\n' +
+                        '"@signature-params": ("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss"',
+                    ),
+                    Buffer.from('HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRalVc/g==', 'base64'),
+                    {
+                        created: new Date(1618884473 * 1000),
+                        keyid: 'test-key-rsa-pss',
+                    },
+                );
+            });
+        });
+        describe('responses', () => {
+            const response: httpbis.Response = {
+                status: 200,
+                headers: {
+                    'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
+                    'Content-Type': 'application/json',
+                    'Content-Digest': 'sha-512=:JlEy2bfUz7WrWIjc1qV6KVLpdr/7L5/L4h7Sxvh6sNHpDQWDCL+GauFQWcZBvVDhiyOnAQsxzZFYwi0wDH+1pw==:',
+                    'Content-Length': '23',
+                    'Signature-Input': 'sig-b24=("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"',
+                    'Signature': 'sig-b24=:wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==:',
+                },
+            };
+            it('verifies a response', async () => {
+                const verifierStub = stub().resolves(true);
+                const result = await httpbis.verifyMessage({
+                    verifier: verifierStub,
+                }, response);
+                expect(result).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+                expect(verifierStub).to.have.been.calledOnceWithExactly(
+                    Buffer.from('"@status": 200\n' +
+                        '"content-type": application/json\n' +
+                        '"content-digest": sha-512=:JlEy2bfUz7WrWIjc1qV6KVLpdr/7L5/L4h7Sxvh6sNHpDQWDCL+GauFQWcZBvVDhiyOnAQsxzZFYwi0wDH+1pw==:\n' +
+                        '"content-length": 23\n' +
+                        '"@signature-params": ("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"',
+                    ),
+                    Buffer.from('wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==', 'base64'),
+                    {
+                        created: new Date(1618884473 * 1000),
+                        keyid: 'test-key-ecc-p256',
+                    },
+                );
+            });
+        });
+        describe('request bound responses', () => {
+            const request: httpbis.Request = {
+                method: 'post',
+                url: 'https://example.com/foo?param=Value&Pet=dog',
+                headers: {
+                    'Host': 'example.com',
+                    'Date': 'Tue, 20 Apr 2021 02:07:55 GMT',
+                    'Content-Type': 'application/json',
+                    'Content-Digest': 'sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:',
+                    'Content-Length': '18',
+                    'Signature-Input': 'sig1=("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884475;keyid="test-key-rsa-pss"',
+                    'Signature': 'sig1=:LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:',
+                },
+            };
+            const response: httpbis.Response = {
+                status: 503,
+                headers: {
+                    'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
+                    'Content-Type': 'application/json',
+                    'Content-Length': '62',
+                    'Signature-Input': 'reqres=("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"',
+                    'Signature': 'reqres=:mh17P4TbYYBmBwsXPT4nsyVzW4Rp9Fb8WcvnfqKCQLoMvzOBLD/n32tL/GPW6XE5GAS5bdsg1khK6lBzV1Cx/Q==:',
+                },
+            };
+            it('verifies a response bound to a request', async () => {
+                const stubVerifier = stub().resolves(true);
+                const result = await httpbis.verifyMessage({
+                    verifier: stubVerifier,
+                }, response, request);
+                expect(result).to.equal(true);
+                expect(stubVerifier).to.have.callCount(1);
+                expect(stubVerifier).to.have.been.calledOnceWithExactly(
+                    Buffer.from('"@status": 503\n' +
+                        '"content-length": 62\n' +
+                        '"content-type": application/json\n' +
+                        '"signature";req;key="sig1": :LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:\n' +
+                        '"@authority";req: example.com\n' +
+                        '"@method";req: POST\n' +
+                        '"@signature-params": ("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"',
+                    ),
+                    Buffer.from('mh17P4TbYYBmBwsXPT4nsyVzW4Rp9Fb8WcvnfqKCQLoMvzOBLD/n32tL/GPW6XE5GAS5bdsg1khK6lBzV1Cx/Q==', 'base64'),
+                    {
+                        keyid: 'test-key-ecc-p256',
+                        created: new Date(1618884479 * 1000),
+                    }
+                );
             });
         });
     });
