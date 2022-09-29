@@ -1,26 +1,11 @@
-import { RequestLike } from '../../src';
-import { buildSignatureInputString, buildSignedData } from '../../src/cavage';
+import { Request } from '../../src';
+import { createSignatureBase, formatSignatureBase } from '../../src/cavage';
 import { expect } from 'chai';
 
 describe('cavage', () => {
-    describe('.buildSignatureInputString', () => {
-        describe('specification tests', () => {
-            it('creates an input string', () => {
-                const inputString = buildSignatureInputString(['@request-target', 'Host', 'Date', 'Digest', 'Content-Length'], {
-                    keyid: 'rsa-key-1',
-                    alg: 'hs2019',
-                    created: new Date(1402170695000),
-                    expires: new Date(1402170995000),
-                });
-                expect(inputString).to.equal('keyId="rsa-key-1",algorithm="hs2019",' +
-                    'created=1402170695,expires=1402170995,' +
-                    'headers="(request-target) (created) (expires) host date digest content-length"')
-            });
-        });
-    });
     describe('.buildSignedData', () => {
         describe('specification examples', () => {
-            const testRequest: RequestLike = {
+            const testRequest: Request = {
                 method: 'GET',
                 url: 'https://example.org/foo',
                 headers: {
@@ -32,16 +17,15 @@ describe('cavage', () => {
                 },
             };
             it('builds the signed data payload', () => {
-                const payload = buildSignedData(testRequest, [
+                const payload = formatSignatureBase(createSignatureBase([
                     '@request-target',
+                    '@created',
                     'host',
                     'date',
                     'cache-control',
                     'x-emptyheader',
                     'x-example',
-                ], {
-                    created: new Date(1402170695000),
-                });
+                ], testRequest, new Map([['created', 1402170695]])));
                 expect(payload).to.equal('(request-target): get /foo\n' +
                     '(created): 1402170695\n' +
                     'host: example.org\n' +

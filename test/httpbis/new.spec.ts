@@ -1,4 +1,5 @@
-import * as httpbis from '../../src/httpbis/new';
+import * as httpbis from '../../src/httpbis';
+import { Request, Response, SigningKey } from '../../src';
 import { expect } from 'chai';
 import { describe } from 'mocha';
 import * as MockDate from 'mockdate';
@@ -9,7 +10,7 @@ describe('httpbis', () => {
     describe('.deriveComponent', () => {
         describe('unbound components', () => {
             it('derives @method component', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'get',
                     headers: {},
                     url: 'https://example.com/test',
@@ -22,7 +23,7 @@ describe('httpbis', () => {
                 })).to.deep.equal(['POST']);
             });
             it('derives @target-uri', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value',
                     headers: {
@@ -34,7 +35,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @authority', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value',
                     headers: {
@@ -66,7 +67,7 @@ describe('httpbis', () => {
                 })).to.deep.equal(['www.example.com:80']);
             });
             it('derives @scheme', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value',
                     headers: {
@@ -80,7 +81,7 @@ describe('httpbis', () => {
                 })).to.deep.equal(['http']);
             });
             it('derives @request-target', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value',
                     headers: {
@@ -97,7 +98,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @path', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value',
                     headers: {
@@ -109,7 +110,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @query', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman',
                     headers: {
@@ -133,7 +134,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @query-param', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                     headers: {
@@ -158,14 +159,14 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @status', () => {
-                const req: httpbis.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                     headers: {
                         Host: 'www.example.com',
                     },
                 };
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -173,7 +174,7 @@ describe('httpbis', () => {
             });
         });
         describe('request-response bound components', () => {
-            const req: httpbis.Request = {
+            const req: Request = {
                 method: 'get',
                 headers: {
                     Host: 'www.example.com',
@@ -181,7 +182,7 @@ describe('httpbis', () => {
                 url: 'https://www.example.com/path?param=value',
             };
             it('derives @method component', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -193,7 +194,7 @@ describe('httpbis', () => {
                 })).to.deep.equal(['POST']);
             });
             it('derives @target-uri', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -202,7 +203,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @authority', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -231,7 +232,7 @@ describe('httpbis', () => {
                 })).to.deep.equal(['www.example.com:80']);
             });
             it('derives @scheme', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -242,7 +243,7 @@ describe('httpbis', () => {
                 })).to.deep.equal(['http']);
             });
             it('derives @request-target', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -256,7 +257,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @path', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -265,7 +266,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @query', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -286,7 +287,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @query-param', () => {
-                const res: httpbis.Response = {
+                const res: Response = {
                     status: 200,
                     headers: {},
                 };
@@ -320,7 +321,7 @@ describe('httpbis', () => {
     });
     describe('.extractHeader', () => {
         describe('raw headers', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -344,7 +345,7 @@ describe('httpbis', () => {
             });
         });
         describe('sf headers', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -362,7 +363,7 @@ describe('httpbis', () => {
             });
         });
         describe('key from structured header', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -384,7 +385,7 @@ describe('httpbis', () => {
             });
         });
         describe('bs from header', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -404,7 +405,7 @@ describe('httpbis', () => {
             });
         });
         describe('request-response bound header', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -417,7 +418,7 @@ describe('httpbis', () => {
                     'Signature': 'sig1=:LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:',
                 },
             };
-            const response: httpbis.Response = {
+            const response: Response = {
                 status: 503,
                 headers: {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
@@ -434,7 +435,7 @@ describe('httpbis', () => {
     });
     describe('.createSignatureBase', () => {
         describe('header fields', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -505,7 +506,7 @@ describe('httpbis', () => {
                     headers: {
                         'Example-Header': ['value, with, lots', 'of, commas'],
                     },
-                } as httpbis.Request)).to.deep.equal([
+                } as Request)).to.deep.equal([
                     ['"example-header";bs', [':dmFsdWUsIHdpdGgsIGxvdHM=:, :b2YsIGNvbW1hcw==:']],
                 ]);
                 expect(httpbis.createSignatureBase([
@@ -515,13 +516,13 @@ describe('httpbis', () => {
                     headers: {
                         'Example-Header': ['value, with, lots, of, commas'],
                     },
-                } as httpbis.Request)).to.deep.equal([
+                } as Request)).to.deep.equal([
                     ['"example-header";bs', [':dmFsdWUsIHdpdGgsIGxvdHMsIG9mLCBjb21tYXM=:']],
                 ]);
             });
         });
         describe('derived components', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://www.example.com/path?param=value',
                 headers: {
@@ -608,7 +609,7 @@ describe('httpbis', () => {
             });
         });
         describe('full example', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -901,7 +902,7 @@ describe('httpbis', () => {
     });
     describe('.signMessage', () => {
         describe('requests', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -912,7 +913,7 @@ describe('httpbis', () => {
                     'Content-Length': '18',
                 },
             };
-            let signer: httpbis.SigningKey;
+            let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
                     sign: stub().resolves(Buffer.from('a fake signature')),
@@ -959,7 +960,7 @@ describe('httpbis', () => {
             });
         });
         describe('responses', () => {
-            const response: httpbis.Response = {
+            const response: Response = {
                 status: 503,
                 headers: {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
@@ -967,7 +968,7 @@ describe('httpbis', () => {
                     'Content-Length': '62',
                 },
             };
-            let signer: httpbis.SigningKey;
+            let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
                     sign: stub().resolves(Buffer.from('a fake signature')),
@@ -999,7 +1000,7 @@ describe('httpbis', () => {
             });
         });
         describe('request bound responses', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -1012,7 +1013,7 @@ describe('httpbis', () => {
                     'Signature': 'sig1=:LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:',
                 },
             };
-            const response: httpbis.Response = {
+            const response: Response = {
                 status: 503,
                 headers: {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
@@ -1020,7 +1021,7 @@ describe('httpbis', () => {
                     'Content-Length': '62',
                 },
             };
-            let signer: httpbis.SigningKey;
+            let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
                     sign: stub().resolves(Buffer.from('a fake signature')),
@@ -1058,7 +1059,7 @@ describe('httpbis', () => {
     });
     describe('.verifyMessage', () => {
         describe('requests', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -1096,7 +1097,7 @@ describe('httpbis', () => {
             });
         });
         describe('responses', () => {
-            const response: httpbis.Response = {
+            const response: Response = {
                 status: 200,
                 headers: {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
@@ -1130,7 +1131,7 @@ describe('httpbis', () => {
             });
         });
         describe('request bound responses', () => {
-            const request: httpbis.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -1143,7 +1144,7 @@ describe('httpbis', () => {
                     'Signature': 'sig1=:LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:',
                 },
             };
-            const response: httpbis.Response = {
+            const response: Response = {
                 status: 503,
                 headers: {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',

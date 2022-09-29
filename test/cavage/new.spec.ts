@@ -1,4 +1,5 @@
-import * as cavage from '../../src/cavage/new';
+import * as cavage from '../../src/cavage';
+import { Request, Response, SigningKey } from '../../src';
 import { expect } from 'chai';
 import { describe } from 'mocha';
 import * as MockDate from 'mockdate';
@@ -9,7 +10,7 @@ describe('cavage', () => {
     describe('.deriveComponent', () => {
         describe('unbound components', () => {
             it('derives @request-target', () => {
-                const req: cavage.Request = {
+                const req: Request = {
                     method: 'POST',
                     url: 'https://www.example.com/path?param=value',
                     headers: {
@@ -24,7 +25,7 @@ describe('cavage', () => {
     });
     describe('.extractHeader', () => {
         describe('raw headers', () => {
-            const request: cavage.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -50,7 +51,7 @@ describe('cavage', () => {
     });
     describe('.createSignatureBase', () => {
         describe('header fields', () => {
-            const request: cavage.Request = {
+            const request: Request = {
                 method: 'POST',
                 url: 'https://www.example.com/',
                 headers: {
@@ -89,7 +90,7 @@ describe('cavage', () => {
             });
         });
         describe('derived components', () => {
-            const request: cavage.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://www.example.com/path?param=value',
                 headers: {
@@ -103,7 +104,7 @@ describe('cavage', () => {
             });
         });
         describe('full example', () => {
-            const request: cavage.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=Value&Pet=dog',
                 headers: {
@@ -299,7 +300,7 @@ describe('cavage', () => {
     });
     describe('.signMessage', () => {
         describe('requests', () => {
-            const request: cavage.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.org/foo',
                 headers: {
@@ -310,7 +311,7 @@ describe('cavage', () => {
                     'Content-Length': '18',
                 },
             };
-            let signer: cavage.SigningKey;
+            let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
                     sign: stub().resolves(Buffer.from('a fake signature')),
@@ -359,7 +360,7 @@ describe('cavage', () => {
             });
         });
         describe('responses', () => {
-            const response: cavage.Response = {
+            const response: Response = {
                 status: 503,
                 headers: {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
@@ -367,7 +368,7 @@ describe('cavage', () => {
                     'Content-Length': '62',
                 },
             };
-            let signer: cavage.SigningKey;
+            let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
                     sign: stub().resolves(Buffer.from('a fake signature')),
@@ -398,7 +399,7 @@ describe('cavage', () => {
     });
     describe('.verifyMessage', () => {
         describe('requests', () => {
-            const request: cavage.Request = {
+            const request: Request = {
                 method: 'post',
                 url: 'https://example.com/foo?param=value&pet=dog',
                 headers: {
@@ -437,7 +438,7 @@ describe('cavage', () => {
             });
         });
         describe('responses', () => {
-            const response: cavage.Response = {
+            const response: Response = {
                 status: 200,
                 headers: {
                     'Date': 'Tue, 07 Jun 2014 20:51:35 GMT',

@@ -89,3 +89,26 @@ export function parseHeader(header: string): List | Dictionary | Item {
     }
     throw new Error('Unable to parse header as structured field');
 }
+
+/**
+ * This allows consumers of the library to supply field specifications that aren't
+ * strictly "structured fields". Really a string must start with a `"` but that won't
+ * tend to happen in our configs.
+ *
+ * @param {string} input
+ * @returns {string}
+ */
+export function quoteString(input: string): string {
+    // if it's not quoted, attempt to quote
+    if (!input.startsWith('"')) {
+        // try to split the structured field
+        const [name, ...rest] = input.split(';');
+        // no params, just quote the whole thing
+        if (!rest.length) {
+            return `"${name}"`;
+        }
+        // quote the first part and put the rest back as it was
+        return `"${name}";${rest.join(';')}`;
+    }
+    return input;
+}
