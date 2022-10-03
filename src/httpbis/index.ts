@@ -31,6 +31,8 @@ export function deriveComponent(component: string, params: Map<string, string | 
 /**
  * Components can be derived from requests or responses (which can also be bound to their request).
  * The signature is essentially (component, params, signingSubject, supplementaryData)
+ *
+ * @todo - prefer pseudo-headers over parsed urls
  */
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, message: Request | Response, req?: Request): string[] {
     // switch the context of the signing data depending on if the `req` flag was passed
@@ -94,12 +96,6 @@ export function deriveComponent(component: string, params: Map<string, string | 
             // absent query params means use `?`
             return [decodeURI(search) || '?'];
         }
-        case '@status': {
-            if (isRequest(context)) {
-                throw new Error('Cannot obtain @status component for requests');
-            }
-            return [context.status.toString()];
-        }
         case '@query-param': {
             if (!isRequest(context)) {
                 throw new Error('Cannot derive @scheme on response');
@@ -113,6 +109,12 @@ export function deriveComponent(component: string, params: Map<string, string | 
                 throw new Error(`Expected query parameter "${name}" not found`);
             }
             return searchParams.getAll(name);
+        }
+        case '@status': {
+            if (isRequest(context)) {
+                throw new Error('Cannot obtain @status component for requests');
+            }
+            return [context.status.toString()];
         }
         default:
             throw new Error(`Unsupported component "${component}"`);
@@ -132,8 +134,8 @@ export function extractHeader(header: string, params: Map<string, string | numbe
         throw new Error(`No header "${header}" found in headers`);
     }
     const values = (Array.isArray(headerTuple[1]) ? headerTuple[1] : [headerTuple[1]]);
-    if (params.has('bs') && params.has('sf')) {
-        throw new Error('Invalid combination of parameters');
+    if (params.has('bs') && (params.has('sf') || params.has('key'))) {
+        throw new Error('Cannot have both `bs` and (implicit) `sf` parameters');
     }
     if (params.has('sf') || params.has('key')) {
         // strict encoding of field
@@ -234,6 +236,9 @@ export function createSigningParameters(config: SignConfig): Parameters {
                 break;
             }
             case 'alg': {
+                // if there is no alg, but it's listed as a required parameter, we should probably
+                // throw an error - the problem is that if it's in the default set of params, do we
+                // really want to throw if there's no keyid?
                 const alg = config.paramValues?.alg ?? config.key.alg ?? null;
                 if (alg) {
                     value = alg.toString();
