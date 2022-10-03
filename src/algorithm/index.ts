@@ -51,6 +51,9 @@ export function createSigner(key: BinaryLike | KeyLike | SignKeyObjectInput | Si
         case 'ecdsa-p256-sha256':
             signer.sign = async (data: Buffer) => createSign('sha256').update(data).sign(key as KeyLike);
             break;
+        case 'ecdsa-p384-sha384':
+            signer.sign = async (data: Buffer) => createSign('sha384').update(data).sign(key as KeyLike);
+            break;
         case 'ed25519':
             signer.sign = async (data: Buffer) => sign(null, data, key as KeyLike);
             // signer.sign = async (data: Buffer) => createSign('ed25519').update(data).sign(key as KeyLike);
@@ -105,6 +108,9 @@ export function createVerifier(key: BinaryLike | KeyLike | VerifyKeyObjectInput 
             break;
         case 'ecdsa-p256-sha256':
             verifier = async (data: Buffer, signature: Buffer) => createVerify('sha256').update(data).verify(key as KeyLike, signature);
+            break;
+        case 'ecdsa-p384-sha384':
+            verifier = async (data: Buffer, signature: Buffer) => createVerify('sha384').update(data).verify(key as KeyLike, signature);
             break;
         case 'ed25519':
             verifier = async (data: Buffer, signature: Buffer) => verify(null, data, key as KeyLike, signature) as unknown as boolean;

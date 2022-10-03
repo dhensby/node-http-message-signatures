@@ -34,7 +34,7 @@ describe('ecdsa-p256-sha256', () => {
             it('verifies a signature', async () => {
                 const verifier = createVerifier(ecdsaKeyPair.publicKey, 'ecdsa-p256-sha256');
                 const data = Buffer.from('some random data');
-                const sig = sign('sha512', data, ecdsaKeyPair.privateKey);
+                const sig = sign('sha256', data, ecdsaKeyPair.privateKey);
                 expect(sig).to.satisfy((arg: Buffer) => verifier(data, arg));
             });
         });

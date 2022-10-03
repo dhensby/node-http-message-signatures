@@ -320,6 +320,23 @@ describe('httpbis', () => {
         });
     });
     describe('.extractHeader', () => {
+        describe('general header extraction', () => {
+            const headers = {
+                'testheader': 'test',
+                'test-header-1': 'test1',
+                'Test-Header-2': 'test2',
+                'test-Header-3': 'test3',
+                'TEST-HEADER-4': 'test4',
+            };
+            Object.entries(headers).forEach(([headerName, expectedValue]) => {
+                it(`successfully extracts a matching header (${headerName})`, () => {
+                    expect(httpbis.extractHeader(headerName.toLowerCase(), new Map(), { headers } as unknown as Request)).to.deep.equal([expectedValue]);
+                });
+            });
+            it('throws on missing headers', () => {
+                expect(() => httpbis.extractHeader('missing', new Map(), { headers } as unknown as Request)).to.throw(Error, 'No header "missing" found in headers');
+            });
+        });
         describe('raw headers', () => {
             const request: Request = {
                 method: 'POST',
