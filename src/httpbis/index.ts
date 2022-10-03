@@ -11,27 +11,33 @@ import {
     Parameters,
     isInnerList,
     isByteSequence,
+    Token,
 } from 'structured-headers';
 import { Dictionary, parseHeader, quoteString } from '../structured-header';
-import { Request, Response, SignConfig, VerifyConfig, defaultParams, isRequest } from '../types';
+import {
+    Request,
+    Response,
+    SignConfig,
+    VerifyConfig,
+    defaultParams,
+    isRequest,
+    CommonConfig,
+} from '../types';
 
-export function deriveComponent(component: string, res: Response, req?: Request): string[];
-export function deriveComponent(component: string, req: Request): string[];
+export function deriveComponent(component: string, params: Map<string, string | number | boolean>, res: Response, req?: Request): string[];
+export function deriveComponent(component: string, params: Map<string, string | number | boolean>, req: Request): string[];
 
 /**
  * Components can be derived from requests or responses (which can also be bound to their request).
- * The signature is essentially (component, signingSubject, supplementaryData)
- *
- * @todo - Allow consumers to register their own component parser somehow
+ * The signature is essentially (component, params, signingSubject, supplementaryData)
  */
-export function deriveComponent(component: string, message: Request | Response, req?: Request): string[] {
-    const [componentName, params] = parseItem(quoteString(component));
+export function deriveComponent(component: string, params: Map<string, string | number | boolean>, message: Request | Response, req?: Request): string[] {
     // switch the context of the signing data depending on if the `req` flag was passed
     const context = params.has('req') ? req : message;
     if (!context) {
         throw new Error('Missing request in request-response bound component');
     }
-    switch (componentName.toString().toLowerCase()) {
+    switch (component) {
         case '@method':
             if (!isRequest(context)) {
                 throw new Error('Cannot derive @method from response');
@@ -112,19 +118,17 @@ export function deriveComponent(component: string, message: Request | Response, 
     }
 }
 
-export function extractHeader(header: string, res: Response, req?: Request): string[];
-export function extractHeader(header: string, req: Request): string[];
+export function extractHeader(header: string, params: Map<string, string | number | boolean>, res: Response, req?: Request): string[];
+export function extractHeader(header: string, params: Map<string, string | number | boolean>, req: Request): string[];
 
-export function extractHeader(header: string, { headers }: Request | Response, req?: Request): string[] {
-    const [headerName, params] = parseItem(quoteString(header));
+export function extractHeader(header: string, params: Map<string, string | number | boolean>, { headers }: Request | Response, req?: Request): string[] {
     const context = params.has('req') ? req?.headers : headers;
     if (!context) {
         throw new Error('Missing request in request-response bound component');
     }
-    const lcHeaderName = headerName.toString().toLowerCase();
-    const headerTuple = Object.entries(context).find(([name]) => name.toLowerCase() === lcHeaderName);
+    const headerTuple = Object.entries(context).find(([name]) => name.toLowerCase() === header);
     if (!headerTuple) {
-        throw new Error(`No header "${headerName}" found in headers`);
+        throw new Error(`No header "${header}" found in headers`);
     }
     const values = (Array.isArray(headerTuple[1]) ? headerTuple[1] : [headerTuple[1]]);
     if (params.has('bs') && params.has('sf')) {
@@ -156,16 +160,37 @@ export function extractHeader(header: string, { headers }: Request | Response, r
     return [values.map((val) => val.trim().replace(/\n\s*/gm, ' ')).join(', ')];
 }
 
-export function createSignatureBase(fields: string[], res: Response, req?: Request): [string, string[]][];
-export function createSignatureBase(fields: string[], req: Request): [string, string[]][];
+function normaliseParams(params: Parameters): Map<string, string | number | boolean> {
+    const map = new Map<string, string | number | boolean>;
+    params.forEach((value, key) => {
+        if (value instanceof ByteSequence) {
+            map.set(key, value.toBase64());
+        } else if (value instanceof Token) {
+            map.set(key, value.toString());
+        } else {
+            map.set(key, value);
+        }
+    });
+    return map;
+}
 
-export function createSignatureBase(fields: string[], res: Request | Response, req?: Request): [string, string[]][] {
-    return (fields).reduce<[string, string[]][]>((base, fieldName) => {
-        const [field, params] = parseItem(quoteString(fieldName));
-        const lcFieldName = field.toString().toLowerCase();
+export function createSignatureBase(config: CommonConfig & { fields: string[] }, res: Response, req?: Request): [string, string[]][];
+export function createSignatureBase(config: CommonConfig & { fields: string[] }, req: Request): [string, string[]][];
+
+export function createSignatureBase(config: CommonConfig & { fields: string[] }, res: Request | Response, req?: Request): [string, string[]][] {
+    return (config.fields).reduce<[string, string[]][]>((base, fieldName) => {
+        const [field, params] = parseItem(quoteString(fieldName)) as [string, Parameters];
+        const fieldParams = normaliseParams(params);
+        const lcFieldName = field.toLowerCase();
         if (lcFieldName !== '@signature-params') {
-            const value = lcFieldName.startsWith('@') ? deriveComponent(fieldName, res as Response, req) : extractHeader(fieldName, res as Response, req);
-            base.push([serializeItem([lcFieldName, params]), value]);
+            let value: string[] | null = null;
+            if (config.componentParser) {
+                value = config.componentParser(lcFieldName, fieldParams, res, req) ?? null;
+            }
+            if (value === null) {
+                value = field.startsWith('@') ? deriveComponent(lcFieldName, fieldParams, res as Response, req) : extractHeader(lcFieldName, fieldParams, res as Response, req);
+            }
+            base.push([serializeItem([field, params]), value]);
         }
         return base;
     }, []);
@@ -275,7 +300,10 @@ export async function signMessage<T extends Request = Request>(config: SignConfi
 
 export async function signMessage<T extends Request | Response = Request | Response, U extends Request = Request>(config: SignConfig, message: T, req?: U): Promise<T> {
     const signingParameters = createSigningParameters(config);
-    const signatureBase = createSignatureBase(config?.fields ?? [], message as Response, req);
+    const signatureBase = createSignatureBase({
+        fields: config?.fields ?? [],
+        componentParser: config.componentParser,
+    }, message as Response, req);
     const signatureInput = serializeList([
         [
             signatureBase.map(([item]) => parseItem(item)),
@@ -366,8 +394,10 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
                 return false;
             }
         }
+
         // now look to verify the signature! Build the expected "signing base" and verify it!
-        const signingBase = createSignatureBase(input[0].map((item) => serializeItem(item)), message as Response, req);
+        const fields = input[0].map((item) => serializeItem(item));
+        const signingBase = createSignatureBase({ fields, componentParser: config.componentParser }, message as Response, req);
         signingBase.push(['"@signature-params"', [serializeList([input])]]);
         const base = formatSignatureBase(signingBase);
         const signature = signatures.get(name);

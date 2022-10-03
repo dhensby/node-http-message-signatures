@@ -16,8 +16,8 @@ describe('httpbis', () => {
                     url: 'https://example.com/test',
                 };
                 // must be in uppercase
-                expect(httpbis.deriveComponent('@method', req)).to.deep.equal(['GET']);
-                expect(httpbis.deriveComponent('@method', {
+                expect(httpbis.deriveComponent('@method', new Map(), req)).to.deep.equal(['GET']);
+                expect(httpbis.deriveComponent('@method', new Map(), {
                     ...req,
                     method: 'POST',
                 })).to.deep.equal(['POST']);
@@ -30,7 +30,7 @@ describe('httpbis', () => {
                         Host: 'www.example.com',
                     },
                 };
-                expect(httpbis.deriveComponent('@target-uri', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@target-uri', new Map(), req)).to.deep.equal([
                     'https://www.example.com/path?param=value',
                 ]);
             });
@@ -42,26 +42,26 @@ describe('httpbis', () => {
                         Host: 'www.example.com',
                     },
                 };
-                expect(httpbis.deriveComponent('@authority', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@authority', new Map(), req)).to.deep.equal([
                     'www.example.com',
                 ]);
-                expect(httpbis.deriveComponent('@authority', {
+                expect(httpbis.deriveComponent('@authority', new Map(), {
                     ...req,
                     url: 'https://www.EXAMPLE.com/path?param=value',
                 })).to.deep.equal(['www.example.com']);
-                expect(httpbis.deriveComponent('@authority', {
+                expect(httpbis.deriveComponent('@authority', new Map(), {
                     ...req,
                     url: 'https://www.example.com:8080/path?param=value',
                 })).to.deep.equal(['www.example.com:8080']);
-                expect(httpbis.deriveComponent('@authority', {
+                expect(httpbis.deriveComponent('@authority', new Map(), {
                     ...req,
                     url: 'https://www.example.com:443/path?param=value',
                 })).to.deep.equal(['www.example.com']);
-                expect(httpbis.deriveComponent('@authority', {
+                expect(httpbis.deriveComponent('@authority', new Map(), {
                     ...req,
                     url: 'http://www.example.com:80/path?param=value',
                 })).to.deep.equal(['www.example.com']);
-                expect(httpbis.deriveComponent('@authority', {
+                expect(httpbis.deriveComponent('@authority', new Map(), {
                     ...req,
                     url: 'https://www.example.com:80/path?param=value',
                 })).to.deep.equal(['www.example.com:80']);
@@ -74,8 +74,8 @@ describe('httpbis', () => {
                         Host: 'www.example.com',
                     },
                 };
-                expect(httpbis.deriveComponent('@scheme', req)).to.deep.equal(['https']);
-                expect(httpbis.deriveComponent('@scheme', {
+                expect(httpbis.deriveComponent('@scheme', new Map(), req)).to.deep.equal(['https']);
+                expect(httpbis.deriveComponent('@scheme', new Map(), {
                     ...req,
                     url: 'http://example.com',
                 })).to.deep.equal(['http']);
@@ -93,7 +93,7 @@ describe('httpbis', () => {
                 // and not:
                 // GET https://www.example.com/path?param=value HTTP/1.1
                 // it's not easy to determine this in Node when receiving messages
-                expect(httpbis.deriveComponent('@request-target', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@request-target', new Map(), req)).to.deep.equal([
                     '/path?param=value',
                 ]);
             });
@@ -105,7 +105,7 @@ describe('httpbis', () => {
                         Host: 'www.example.com',
                     },
                 };
-                expect(httpbis.deriveComponent('@path', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@path', new Map(), req)).to.deep.equal([
                     '/path',
                 ]);
             });
@@ -117,16 +117,16 @@ describe('httpbis', () => {
                         Host: 'www.example.com',
                     },
                 };
-                expect(httpbis.deriveComponent('@query', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@query', new Map(), req)).to.deep.equal([
                     '?param=value&foo=bar&baz=batman',
                 ]);
-                expect(httpbis.deriveComponent('@query', {
+                expect(httpbis.deriveComponent('@query', new Map(), {
                     ...req,
                     url: 'https://www.example.com/path?queryString',
                 })).to.deep.equal([
                     '?queryString',
                 ]);
-                expect(httpbis.deriveComponent('@query', {
+                expect(httpbis.deriveComponent('@query', new Map(), {
                     ...req,
                     url: 'https://www.example.com/path',
                 })).to.deep.equal([
@@ -141,16 +141,16 @@ describe('httpbis', () => {
                         Host: 'www.example.com',
                     },
                 };
-                expect(httpbis.deriveComponent('"@query-param";name="baz"', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'baz']]), req)).to.deep.equal([
                     'batman',
                 ]);
-                expect(httpbis.deriveComponent('"@query-param";name="qux"', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'qux']]), req)).to.deep.equal([
                     '',
                 ]);
-                expect(httpbis.deriveComponent('@query-param;name=param', req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'param']]), req)).to.deep.equal([
                     'value',
                 ]);
-                expect(httpbis.deriveComponent('@query-param;name=param', {
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'param']]), {
                     ...req,
                     url: 'https://example.com/path?param=value&param=value2',
                 })).to.deep.equal([
@@ -170,7 +170,7 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('@status', res, req)).to.deep.equal(['200']);
+                expect(httpbis.deriveComponent('@status', new Map(), res, req)).to.deep.equal(['200']);
             });
         });
         describe('request-response bound components', () => {
@@ -187,8 +187,8 @@ describe('httpbis', () => {
                     headers: {},
                 };
                 // must be in uppercase
-                expect(httpbis.deriveComponent('@method;req', res, req)).to.deep.equal(['GET']);
-                expect(httpbis.deriveComponent('@method;req', res, {
+                expect(httpbis.deriveComponent('@method', new Map([['req', true]]), res, req)).to.deep.equal(['GET']);
+                expect(httpbis.deriveComponent('@method', new Map([['req', true]]), res, {
                     ...req,
                     method: 'POST',
                 })).to.deep.equal(['POST']);
@@ -198,7 +198,7 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('@target-uri;req', res, req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@target-uri', new Map([['req', true]]), res, req)).to.deep.equal([
                     'https://www.example.com/path?param=value',
                 ]);
             });
@@ -207,26 +207,26 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('@authority;req', res, req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@authority', new Map([['req', true]]), res, req)).to.deep.equal([
                     'www.example.com',
                 ]);
-                expect(httpbis.deriveComponent('@authority;req', res, {
+                expect(httpbis.deriveComponent('@authority', new Map([['req', true]]), res, {
                     ...req,
                     url: 'https://www.EXAMPLE.com/path?param=value',
                 })).to.deep.equal(['www.example.com']);
-                expect(httpbis.deriveComponent('@authority;req', res, {
+                expect(httpbis.deriveComponent('@authority', new Map([['req', true]]), res, {
                     ...req,
                     url: 'https://www.example.com:8080/path?param=value',
                 })).to.deep.equal(['www.example.com:8080']);
-                expect(httpbis.deriveComponent('@authority;req', res, {
+                expect(httpbis.deriveComponent('@authority', new Map([['req', true]]), res, {
                     ...req,
                     url: 'https://www.example.com:443/path?param=value',
                 })).to.deep.equal(['www.example.com']);
-                expect(httpbis.deriveComponent('@authority;req', res, {
+                expect(httpbis.deriveComponent('@authority', new Map([['req', true]]), res, {
                     ...req,
                     url: 'http://www.example.com:80/path?param=value',
                 })).to.deep.equal(['www.example.com']);
-                expect(httpbis.deriveComponent('@authority;req', res, {
+                expect(httpbis.deriveComponent('@authority', new Map([['req', true]]), res, {
                     ...req,
                     url: 'https://www.example.com:80/path?param=value',
                 })).to.deep.equal(['www.example.com:80']);
@@ -236,8 +236,8 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('@scheme;req', res, req)).to.deep.equal(['https']);
-                expect(httpbis.deriveComponent('@scheme;req', res, {
+                expect(httpbis.deriveComponent('@scheme', new Map([['req', true]]), res, req)).to.deep.equal(['https']);
+                expect(httpbis.deriveComponent('@scheme', new Map([['req', true]]), res, {
                     ...req,
                     url: 'http://example.com',
                 })).to.deep.equal(['http']);
@@ -252,7 +252,7 @@ describe('httpbis', () => {
                 // and not:
                 // GET https://www.example.com/path?param=value HTTP/1.1
                 // it's not easy to determine this in Node when receiving messages
-                expect(httpbis.deriveComponent('@request-target;req', res, req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@request-target', new Map([['req', true]]), res, req)).to.deep.equal([
                     '/path?param=value',
                 ]);
             });
@@ -261,7 +261,7 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('@path;req', res, req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@path', new Map([['req', true]]), res, req)).to.deep.equal([
                     '/path',
                 ]);
             });
@@ -270,16 +270,16 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('@query;req', res, req)).to.deep.equal([
+                expect(httpbis.deriveComponent('@query', new Map([['req', true]]), res, req)).to.deep.equal([
                     '?param=value',
                 ]);
-                expect(httpbis.deriveComponent('@query;req', res, {
+                expect(httpbis.deriveComponent('@query', new Map([['req', true]]), res, {
                     ...req,
                     url: 'https://www.example.com/path?queryString',
                 })).to.deep.equal([
                     '?queryString',
                 ]);
-                expect(httpbis.deriveComponent('@query;req', res, {
+                expect(httpbis.deriveComponent('@query', new Map([['req', true]]), res, {
                     ...req,
                     url: 'https://www.example.com/path',
                 })).to.deep.equal([
@@ -291,25 +291,25 @@ describe('httpbis', () => {
                     status: 200,
                     headers: {},
                 };
-                expect(httpbis.deriveComponent('"@query-param";req;name="baz"', res, {
+                expect(httpbis.deriveComponent('@query-param', new Map<string, string | boolean | number>([['req', true], ['name', 'baz']]), res, {
                     ...req,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     'batman',
                 ]);
-                expect(httpbis.deriveComponent('"@query-param";req;name="qux"', res, {
+                expect(httpbis.deriveComponent('@query-param', new Map<string, string | boolean | number>([['req', true], ['name', 'qux']]), res, {
                     ...req,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     '',
                 ]);
-                expect(httpbis.deriveComponent('@query-param;req;name=param', res, {
+                expect(httpbis.deriveComponent('@query-param', new Map<string, string | boolean | number>([['req', true], ['name', 'param']]), res, {
                     ...req,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     'value',
                 ]);
-                expect(httpbis.deriveComponent('@query-param;req;name=param', res, {
+                expect(httpbis.deriveComponent('@query-param', new Map<string, string | boolean | number>([['req', true], ['name', 'param']]), res, {
                     ...req,
                     url: 'https://example.com/path?param=value&param=value2',
                 })).to.deep.equal([
@@ -335,13 +335,13 @@ describe('httpbis', () => {
                 },
             };
             it('parses raw fields', () => {
-                expect(httpbis.extractHeader('host', request)).to.deep.equal(['www.example.com']);
-                expect(httpbis.extractHeader('date', request)).to.deep.equal(['Tue, 20 Apr 2021 02:07:56 GMT']);
-                expect(httpbis.extractHeader('X-OWS-Header', request)).to.deep.equal(['Leading and trailing whitespace.']);
-                expect(httpbis.extractHeader('x-obs-fold-header', request)).to.deep.equal(['Obsolete line folding.']);
-                expect(httpbis.extractHeader('cache-control', request)).to.deep.equal(['max-age=60, must-revalidate']);
-                expect(httpbis.extractHeader('example-dict', request)).to.deep.equal(['a=1,    b=2;x=1;y=2,   c=(a   b   c)']);
-                expect(httpbis.extractHeader('x-empty-header', request)).to.deep.equal(['']);
+                expect(httpbis.extractHeader('host', new Map(), request)).to.deep.equal(['www.example.com']);
+                expect(httpbis.extractHeader('date', new Map(), request)).to.deep.equal(['Tue, 20 Apr 2021 02:07:56 GMT']);
+                expect(httpbis.extractHeader('x-ows-header', new Map(), request)).to.deep.equal(['Leading and trailing whitespace.']);
+                expect(httpbis.extractHeader('x-obs-fold-header', new Map(), request)).to.deep.equal(['Obsolete line folding.']);
+                expect(httpbis.extractHeader('cache-control', new Map(), request)).to.deep.equal(['max-age=60, must-revalidate']);
+                expect(httpbis.extractHeader('example-dict', new Map(), request)).to.deep.equal(['a=1,    b=2;x=1;y=2,   c=(a   b   c)']);
+                expect(httpbis.extractHeader('x-empty-header', new Map(), request)).to.deep.equal(['']);
             });
         });
         describe('sf headers', () => {
@@ -359,7 +359,7 @@ describe('httpbis', () => {
                 },
             };
             it('serializes a dictionary', () => {
-                expect(httpbis.extractHeader('example-dict;sf', request)).to.deep.equal(['a=1, b=2;x=1;y=2, c=(a b c)']);
+                expect(httpbis.extractHeader('example-dict', new Map([['sf', true]]), request)).to.deep.equal(['a=1, b=2;x=1;y=2, c=(a b c)']);
             });
         });
         describe('key from structured header', () => {
@@ -372,16 +372,16 @@ describe('httpbis', () => {
                 },
             };
             it('pulls out an integer key', () => {
-                expect(httpbis.extractHeader('example-dict;key="a"', request)).to.deep.equal(['1']);
+                expect(httpbis.extractHeader('example-dict', new Map([['key', 'a']]), request)).to.deep.equal(['1']);
             });
             it('pulls out a boolean key', () => {
-                expect(httpbis.extractHeader('example-dict;key="d"', request)).to.deep.equal(['?1']);
+                expect(httpbis.extractHeader('example-dict', new Map([['key', 'd']]), request)).to.deep.equal(['?1']);
             });
             it('pulls out parameters', () => {
-                expect(httpbis.extractHeader('example-dict;key="b"', request)).to.deep.equal(['2;x=1;y=2']);
+                expect(httpbis.extractHeader('example-dict', new Map([['key', 'b']]), request)).to.deep.equal(['2;x=1;y=2']);
             });
             it('pulls out an inner list', () => {
-                expect(httpbis.extractHeader('example-dict;key="c"', request)).to.deep.equal(['(a b c)']);
+                expect(httpbis.extractHeader('example-dict', new Map([['key', 'c']]), request)).to.deep.equal(['(a b c)']);
             });
         });
         describe('bs from header', () => {
@@ -394,8 +394,8 @@ describe('httpbis', () => {
                 },
             };
             it('encodes multiple headers separately', () => {
-                expect(httpbis.extractHeader('Example-Header;bs', request)).to.deep.equal([':dmFsdWUsIHdpdGgsIGxvdHM=:, :b2YsIGNvbW1hcw==:']);
-                expect(httpbis.extractHeader('Example-Header;bs', {
+                expect(httpbis.extractHeader('example-header', new Map([['bs', true]]), request)).to.deep.equal([':dmFsdWUsIHdpdGgsIGxvdHM=:, :b2YsIGNvbW1hcw==:']);
+                expect(httpbis.extractHeader('example-header', new Map([['bs', true]]), {
                     ...request,
                     headers: {
                         ...request.headers,
@@ -427,7 +427,7 @@ describe('httpbis', () => {
                 },
             };
             it('binds requests and responses', () => {
-                expect(httpbis.extractHeader('Signature;req;key=sig1', response, request)).to.deep.equal([
+                expect(httpbis.extractHeader('signature', new Map<string, string | boolean | number>([['req', true], ['key', 'sig1']]), response, request)).to.deep.equal([
                     ':LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:',
                 ]);
             });
@@ -449,14 +449,14 @@ describe('httpbis', () => {
                 },
             };
             it('creates a signature base from raw headers', () => {
-                expect(httpbis.createSignatureBase([
+                expect(httpbis.createSignatureBase({ fields: [
                     'host',
                     'date',
                     'x-ows-header',
                     'x-obs-fold-header',
                     'cache-control',
                     'example-dict',
-                ], request)).to.deep.equal([
+                ] }, request)).to.deep.equal([
                     ['"host"', ['www.example.com']],
                     ['"date"', ['Tue, 20 Apr 2021 02:07:56 GMT']],
                     ['"x-ows-header"', ['Leading and trailing whitespace.']],
@@ -466,26 +466,26 @@ describe('httpbis', () => {
                 ]);
             });
             it('extracts an empty header', () => {
-                expect(httpbis.createSignatureBase([
-                    'X-Empty-Header',
-                ], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: [
+                    'x-empty-header',
+                ] }, request)).to.deep.equal([
                     ['"x-empty-header"', ['']],
                 ]);
             });
             it('extracts strict formatted headers', () => {
-                expect(httpbis.createSignatureBase([
+                expect(httpbis.createSignatureBase({ fields: [
                     'example-dict;sf',
-                ], request)).to.deep.equal([
+                ] }, request)).to.deep.equal([
                     ['"example-dict";sf', ['a=1, b=2;x=1;y=2, c=(a b c)']],
                 ]);
             });
             it('extracts keys from dictionary headers', () => {
-                expect(httpbis.createSignatureBase([
+                expect(httpbis.createSignatureBase({ fields: [
                     'example-dict;key="a"',
                     'example-dict;key="d"',
                     'example-dict;key="b"',
                     'example-dict;key="c"',
-                ], {
+                ] }, {
                     ...request,
                     headers: {
                         ...request.headers,
@@ -499,9 +499,9 @@ describe('httpbis', () => {
                 ]);
             });
             it('extracts binary formatted headers', () => {
-                expect(httpbis.createSignatureBase([
+                expect(httpbis.createSignatureBase({ fields: [
                     'example-header;bs',
-                ], {
+                ] }, {
                     ...request,
                     headers: {
                         'Example-Header': ['value, with, lots', 'of, commas'],
@@ -509,9 +509,9 @@ describe('httpbis', () => {
                 } as Request)).to.deep.equal([
                     ['"example-header";bs', [':dmFsdWUsIHdpdGgsIGxvdHM=:, :b2YsIGNvbW1hcw==:']],
                 ]);
-                expect(httpbis.createSignatureBase([
+                expect(httpbis.createSignatureBase({ fields: [
                     'example-header;bs',
-                ], {
+                ] }, {
                     ...request,
                     headers: {
                         'Example-Header': ['value, with, lots, of, commas'],
@@ -530,49 +530,49 @@ describe('httpbis', () => {
                 },
             };
             it('derives @method', () => {
-                expect(httpbis.createSignatureBase(['@method'], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: ['@method'] }, request)).to.deep.equal([
                     ['"@method"', ['POST']],
                 ]);
             });
             it('derives @target-uri', () => {
-                expect(httpbis.createSignatureBase(['@target-uri'], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: ['@target-uri'] }, request)).to.deep.equal([
                     ['"@target-uri"', ['https://www.example.com/path?param=value']],
                 ]);
             });
             it('derives @authority', () => {
-                expect(httpbis.createSignatureBase(['@authority'], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: ['@authority'] }, request)).to.deep.equal([
                     ['"@authority"', ['www.example.com']],
                 ]);
             });
             it('derives @scheme', () => {
-                expect(httpbis.createSignatureBase(['@scheme'], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: ['@scheme'] }, request)).to.deep.equal([
                     ['"@scheme"', ['https']],
                 ]);
             });
             it('derives @request-target', () => {
-                expect(httpbis.createSignatureBase(['@request-target'], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: ['@request-target'] }, request)).to.deep.equal([
                     ['"@request-target"', ['/path?param=value']],
                 ]);
             });
             it('derives @path', () => {
-                expect(httpbis.createSignatureBase(['@path'], request)).to.deep.equal([
+                expect(httpbis.createSignatureBase({ fields: ['@path'] }, request)).to.deep.equal([
                     ['"@path"', ['/path']],
                 ]);
             });
             it('derives @query', () => {
-                expect(httpbis.createSignatureBase(['@query'], {
+                expect(httpbis.createSignatureBase({ fields: ['@query'] }, {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman',
                 })).to.deep.equal([
                     ['"@query"', ['?param=value&foo=bar&baz=batman']],
                 ]);
-                expect(httpbis.createSignatureBase(['@query'], {
+                expect(httpbis.createSignatureBase({ fields: ['@query'] }, {
                     ...request,
                     url: 'https://www.example.com/path?queryString',
                 })).to.deep.equal([
                     ['"@query"', ['?queryString']],
                 ]);
-                expect(httpbis.createSignatureBase(['@query'], {
+                expect(httpbis.createSignatureBase({ fields: ['@query'] }, {
                     ...request,
                     url: 'https://www.example.com/path',
                 })).to.deep.equal([
@@ -580,19 +580,19 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @query-param', () => {
-                expect(httpbis.createSignatureBase(['@query-param;name="baz"'], {
+                expect(httpbis.createSignatureBase({ fields: ['@query-param;name="baz"'] }, {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     ['"@query-param";name="baz"', ['batman']],
                 ]);
-                expect(httpbis.createSignatureBase(['@query-param;name="qux"'], {
+                expect(httpbis.createSignatureBase({ fields: ['@query-param;name="qux"'] }, {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
                     ['"@query-param";name="qux"', ['']],
                 ]);
-                expect(httpbis.createSignatureBase(['@query-param;name="param"'], {
+                expect(httpbis.createSignatureBase({ fields: ['@query-param;name="param"'] }, {
                     ...request,
                     url: 'https://www.example.com/path?param=value&foo=bar&baz=batman&qux=',
                 })).to.deep.equal([
@@ -600,7 +600,7 @@ describe('httpbis', () => {
                 ]);
             });
             it('derives @status', () => {
-                expect(httpbis.createSignatureBase(['@status'], {
+                expect(httpbis.createSignatureBase({ fields: ['@status'] }, {
                     status: 200,
                     headers: {},
                 }, request)).to.deep.equal([
@@ -608,6 +608,27 @@ describe('httpbis', () => {
                 ]);
             });
         });
+        describe('user derived component', () => {
+            const req: Request = {
+                method: 'get',
+                headers: {
+                    Host: 'www.example.com',
+                },
+                url: 'https://www.example.com/path?param=value',
+            };
+            it('resolves a component with a supplied resolver', () => {
+                const resolver = stub();
+                resolver.withArgs('@custom').returns(['my value']);
+                resolver.returns(null)
+                expect(httpbis.createSignatureBase({ fields: ['@custom', '@method'], componentParser: resolver }, req)).to.deep.equal([
+                    ['"@custom"', ['my value']],
+                    ['"@method"', ['GET']],
+                ]);
+                expect(resolver).to.have.callCount(2);
+                expect(resolver).to.have.been.calledWith('@custom', new Map(), req);
+                expect(resolver).to.have.been.calledWith('@method', new Map(), req);
+            });
+        })
         describe('full example', () => {
             const request: Request = {
                 method: 'post',
@@ -621,14 +642,14 @@ describe('httpbis', () => {
                 },
             };
             it('produces a signature base for a request', () => {
-                expect(httpbis.createSignatureBase([
+                expect(httpbis.createSignatureBase({ fields: [
                     '@method',
                     '@authority',
                     '@path',
                     'content-digest',
                     'content-length',
                     'content-type',
-                ], request)).to.deep.equal([
+                ] }, request)).to.deep.equal([
                     ['"@method"', ['POST']],
                     ['"@authority"', ['example.com']],
                     ['"@path"', ['/foo']],

@@ -63,7 +63,26 @@ export const defaultParams = [
     'expires',
 ];
 
-export interface SignConfig {
+/**
+ * A component parser supplied by the consumer to allow applications to define their own logic for
+ * extracting components for use in the signature base.
+ *
+ * This can be useful in circumstances where the application has agreed a specific standard or way
+ * of extracting components from messages and/or when new components are added to the specification
+ * but not yet supported by the library.
+ *
+ * Return null to defer to internal logic
+ */
+export type ComponentParser = (name: string, params: Map<string, string | number | boolean>, message: Request | Response, req?: Request) => string[] | null;
+
+export interface CommonConfig {
+    /**
+     * A component user supplied component parser
+     */
+    componentParser?: ComponentParser;
+}
+
+export interface SignConfig extends CommonConfig {
     key: SigningKey;
     /**
      * The name to try to use for the signature
@@ -91,7 +110,7 @@ export interface SignConfig {
 /**
  * Options when verifying signatures
  */
-export interface VerifyConfig {
+export interface VerifyConfig extends CommonConfig {
     verifier: Verifier;
     /**
      * A maximum age for the signature
