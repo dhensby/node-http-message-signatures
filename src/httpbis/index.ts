@@ -24,6 +24,7 @@ import {
     CommonConfig,
     VerifyingKey,
 } from '../types';
+import { UnsupportedAlgorithmError } from '../errors';
 
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, res: Response, req?: Request): string[];
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, req: Request): string[];
@@ -378,6 +379,10 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
                 return params;
             }, {})),
         ]);
+        if (input[1].has('alg') && key.algs?.includes(input[1].get('alg') as string) === false) {
+            throw new UnsupportedAlgorithmError('Unsupported key algorithm');
+        }
+        // @todo - confirm this is all working as expected
         if (!config.all && !key) {
             return null;
         }
