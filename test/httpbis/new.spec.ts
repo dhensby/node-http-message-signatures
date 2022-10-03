@@ -1095,10 +1095,12 @@ describe('httpbis', () => {
             };
             it('verifies a request', async () => {
                 const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-rsa-pss' ? { verify: verifierStub } : null);
                 const valid = await httpbis.verifyMessage({
-                    verifier: verifierStub,
+                    keyLookup,
                 }, request);
                 expect(valid).to.equal(true);
+                expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
                     Buffer.from('"@method": POST\n' +
@@ -1131,10 +1133,12 @@ describe('httpbis', () => {
             };
             it('verifies a response', async () => {
                 const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-ecc-p256' ? { verify: verifierStub } : null);
                 const result = await httpbis.verifyMessage({
-                    verifier: verifierStub,
+                    keyLookup,
                 }, response);
                 expect(result).to.equal(true);
+                expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
                     Buffer.from('"@status": 200\n' +
@@ -1176,13 +1180,15 @@ describe('httpbis', () => {
                 },
             };
             it('verifies a response bound to a request', async () => {
-                const stubVerifier = stub().resolves(true);
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-ecc-p256' ? { verify: verifierStub } : null);
                 const result = await httpbis.verifyMessage({
-                    verifier: stubVerifier,
+                    keyLookup,
                 }, response, request);
                 expect(result).to.equal(true);
-                expect(stubVerifier).to.have.callCount(1);
-                expect(stubVerifier).to.have.been.calledOnceWithExactly(
+                expect(keyLookup).to.have.callCount(1);
+                expect(verifierStub).to.have.callCount(1);
+                expect(verifierStub).to.have.been.calledOnceWithExactly(
                     Buffer.from('"@status": 503\n' +
                         '"content-length": 62\n' +
                         '"content-type": application/json\n' +

@@ -22,6 +22,7 @@ import {
     defaultParams,
     isRequest,
     CommonConfig,
+    VerifyingKey,
 } from '../types';
 
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, res: Response, req?: Request): string[];
@@ -353,7 +354,28 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const requiredParams = config.requiredParams ?? [];
     const requiredFields = config.requiredFields ?? [];
     return Array.from(signatureInputs.entries()).reduce<Promise<boolean | null>>(async (prev, [name, input]) => {
-        const result: Error | boolean | null = await prev.catch((e) => e);
+        const [result, key]: [Error | boolean | null, VerifyingKey] = await Promise.all([
+            prev.catch((e) => e),
+            config.keyLookup(Array.from(input[1].entries()).reduce((params, [key, value]) => {
+                if (value instanceof ByteSequence) {
+                    Object.assign(params, {
+                        [key]: value.toBase64(),
+                    });
+                } else if (value instanceof Token) {
+                    Object.assign(params, {
+                        [key]: value.toString(),
+                    });
+                } else {
+                    Object.assign(params, {
+                        [key]: value,
+                    });
+                }
+                return params;
+            }, {})),
+        ]);
+        if (!config.all && !key) {
+            return null;
+        }
         if (!config.all && result === true) {
             return result;
         }
@@ -407,7 +429,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         if (!isByteSequence(signature[0] as BareItem)) {
             throw new Error('Malformed signature');
         }
-        return config.verifier(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), Array.from(input[1].entries()).reduce((params, [key, value]) => {
+        return key.verify(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), Array.from(input[1].entries()).reduce((params, [key, value]) => {
             let val: Date | number | string;
             switch (key.toLowerCase()) {
                 case 'created':

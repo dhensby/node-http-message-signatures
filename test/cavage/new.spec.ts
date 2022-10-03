@@ -413,10 +413,12 @@ describe('cavage', () => {
             };
             it('verifies a request', async () => {
                 const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 const valid = await cavage.verifyMessage({
-                    verifier: verifierStub,
+                    keyLookup,
                 }, request);
                 expect(valid).to.equal(true);
+                expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
                     Buffer.from(
@@ -450,8 +452,9 @@ describe('cavage', () => {
             };
             it('verifies a response', async () => {
                 const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 const result = await cavage.verifyMessage({
-                    verifier: verifierStub,
+                    keyLookup,
                 }, response);
                 expect(result).to.equal(true);
                 expect(verifierStub).to.have.callCount(1);

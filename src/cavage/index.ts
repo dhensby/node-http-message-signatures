@@ -265,7 +265,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         }
     }
     // now look to verify the signature! Build the expected "signing base" and verify it!
-    return config.verifier(Buffer.from(base), Buffer.from(parsedHeader.get('signature'), 'base64'), Array.from(parsedHeader.entries()).reduce((params, [key, value]) => {
+    const params = Array.from(parsedHeader.entries()).reduce((params, [key, value]) => {
         let keyName = key;
         let val: Date | number | string;
         switch (key.toLowerCase()) {
@@ -284,7 +284,6 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
                 keyName = 'keyid';
                 val = value;
                 break;
-                // no break
             default: {
                 if (typeof value === 'string' || typeof value=== 'number') {
                     val = value;
@@ -296,5 +295,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         return Object.assign(params, {
             [keyName]: val,
         });
-    }, {}));
+    }, {});
+    const key = await config.keyLookup(params);
+    return key?.verify(Buffer.from(base), Buffer.from(parsedHeader.get('signature'), 'base64'), params) ?? null;
 }

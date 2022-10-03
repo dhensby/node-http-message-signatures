@@ -11,13 +11,38 @@ export interface Response {
 
 export type Signer = (data: Buffer) => Promise<Buffer>;
 export type Verifier = (data: Buffer, signature: Buffer, parameters?: SignatureParameters) => Promise<boolean | null>;
+export type VerifierFinder = (parameters: SignatureParameters) => Promise<VerifyingKey>;
 
 export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'hmac-sha256' | 'rsa-pss-sha512' | string;
 
 export interface SigningKey {
+    /**
+     * The ID of this key
+     */
     id?: string;
+    /**
+     * The algorithm to sign with
+     */
     alg?: Algorithm;
+    /**
+     * The Signer function
+     */
     sign: Signer;
+}
+
+export interface VerifyingKey {
+    /**
+     * The ID of this key
+     */
+    id?: string;
+    /**
+     * The supported algorithms for this key
+     */
+    algs?: Algorithm[];
+    /**
+     * The Verify function
+     */
+    verify: Verifier;
 }
 
 /**
@@ -47,9 +72,9 @@ export interface SignatureParameters {
      */
     keyid?: string;
     /**
-     * A context parameter for the signature
+     * A tag parameter for the signature
      */
-    context?: string;
+    tag?: string;
     [param: string]: Date | number | string | null | undefined;
 }
 
@@ -105,20 +130,25 @@ export interface SignConfig extends CommonConfig {
      * of adding creation time (by setting `created: null`)
      */
     paramValues?: SignatureParameters,
+    /**
+     * A list of supported algorithms
+     */
+    algs?: Algorithm[];
 }
 
 /**
  * Options when verifying signatures
  */
 export interface VerifyConfig extends CommonConfig {
-    verifier: Verifier;
+    keyLookup: VerifierFinder;
     /**
-     * A maximum age for the signature
+     * A date that the signature can't have been marked as `created` after
      * Default: Date.now() + tolerance
      */
     notAfter?: Date | number;
     /**
-     * The maximum age of the signature - this overrides the `expires` value for the signature
+     * The maximum age of the signature - this effectively overrides the `expires` value for the
+     * signature (unless the expires age is less than the maxAge specified)
      * if provided
      */
     maxAge?: number;
