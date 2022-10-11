@@ -17,6 +17,7 @@ import { Dictionary, parseHeader, quoteString } from '../structured-header';
 import {
     Request,
     Response,
+    SignatureParameters,
     SignConfig,
     VerifyConfig,
     defaultParams,
@@ -24,7 +25,13 @@ import {
     CommonConfig,
     VerifyingKey,
 } from '../types';
-import { UnsupportedAlgorithmError } from '../errors';
+import {
+    ExpiredError,
+    MalformedSignatureError,
+    UnacceptableSignatureError,
+    UnknownKeyError,
+    UnsupportedAlgorithmError,
+} from '../errors';
 
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, res: Response, req?: Request): string[];
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, req: Request): string[];
@@ -49,7 +56,7 @@ export function deriveComponent(component: string, params: Map<string, string | 
             return [context.method.toUpperCase()];
         case '@target-uri': {
             if (!isRequest(context)) {
-                throw new Error('Cannot derive @target-url on response');
+                throw new Error('Cannot derive @target-uri on response');
             }
             return [context.url.toString()];
         }
@@ -248,7 +255,7 @@ export function createSigningParameters(config: SignConfig): Parameters {
             }
             default:
                 if (config.paramValues?.[paramName] instanceof Date) {
-                    value = Math.floor((config.paramValues[paramName] as Date).getTime() / 1000).toString();
+                    value = Math.floor((config.paramValues[paramName] as Date).getTime() / 1000);
                 } else if (config.paramValues?.[paramName]) {
                     value = config.paramValues[paramName] as string;
                 }
@@ -287,7 +294,7 @@ export function augmentHeaders(headers: Record<string, string | string[]>, signa
     let signatureName = name ?? 'sig';
     if (signatureHeader.has(signatureName) || inputHeader.has(signatureName)) {
         let count = 0;
-        while (signatureHeader?.has(`${signatureName}${count}`) || inputHeader?.has(`${signatureName}${count}`)) {
+        while (signatureHeader.has(`${signatureName}${count}`) || inputHeader.has(`${signatureName}${count}`)) {
             count++;
         }
         signatureName += count.toString();
@@ -308,7 +315,7 @@ export async function signMessage<T extends Request = Request>(config: SignConfi
 export async function signMessage<T extends Request | Response = Request | Response, U extends Request = Request>(config: SignConfig, message: T, req?: U): Promise<T> {
     const signingParameters = createSigningParameters(config);
     const signatureBase = createSignatureBase({
-        fields: config?.fields ?? [],
+        fields: config.fields ?? [],
         componentParser: config.componentParser,
     }, message as Response, req);
     const signatureInput = serializeList([
@@ -323,7 +330,7 @@ export async function signMessage<T extends Request | Response = Request | Respo
     const signature = await config.key.sign(Buffer.from(base));
     return {
         ...message,
-        headers: augmentHeaders({...message.headers}, signature, signatureInput, config.name),
+        headers: augmentHeaders({ ...message.headers }, signature, signatureInput, config.name),
     };
 }
 
@@ -360,70 +367,68 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const requiredParams = config.requiredParams ?? [];
     const requiredFields = config.requiredFields ?? [];
     return Array.from(signatureInputs.entries()).reduce<Promise<boolean | null>>(async (prev, [name, input]) => {
-        const [result, key]: [Error | boolean | null, VerifyingKey] = await Promise.all([
+        const signatureParams: SignatureParameters = Array.from(input[1].entries()).reduce((params, [key, value]) => {
+            if (value instanceof ByteSequence) {
+                Object.assign(params, {
+                    [key]: value.toBase64(),
+                });
+            } else if (value instanceof Token) {
+                Object.assign(params, {
+                    [key]: value.toString(),
+                });
+            } else if (key === 'created' || key === 'expired') {
+                Object.assign(params, {
+                    [key]: new Date((value as number) * 1000),
+                });
+            } else {
+                Object.assign(params, {
+                    [key]: value,
+                });
+            }
+            return params;
+        }, {});
+        const [result, key]: [Error | boolean | null, VerifyingKey | null] = await Promise.all([
             prev.catch((e) => e),
-            config.keyLookup(Array.from(input[1].entries()).reduce((params, [key, value]) => {
-                if (value instanceof ByteSequence) {
-                    Object.assign(params, {
-                        [key]: value.toBase64(),
-                    });
-                } else if (value instanceof Token) {
-                    Object.assign(params, {
-                        [key]: value.toString(),
-                    });
-                } else {
-                    Object.assign(params, {
-                        [key]: value,
-                    });
-                }
-                return params;
-            }, {})),
+            config.keyLookup(signatureParams),
         ]);
-        if (input[1].has('alg') && key.algs?.includes(input[1].get('alg') as string) === false) {
-            throw new UnsupportedAlgorithmError('Unsupported key algorithm');
-        }
         // @todo - confirm this is all working as expected
-        if (!config.all && !key) {
-            return null;
+        if (config.all && !key) {
+            throw new UnknownKeyError('Unknown key');
         }
-        if (!config.all && result === true) {
-            return result;
-        }
-        if (config.all && result !== true && result !== null) {
+        if (!key) {
             if (result instanceof Error) {
                 throw result;
             }
             return result;
         }
+        if (input[1].has('alg') && key.algs?.includes(input[1].get('alg') as string) === false) {
+            throw new UnsupportedAlgorithmError('Unsupported key algorithm');
+        }
         if (!isInnerList(input)) {
-            throw new Error('Malformed signature input');
+            throw new MalformedSignatureError('Malformed signature input');
         }
         const hasRequiredParams = requiredParams.every((param) => input[1].has(param));
         if (!hasRequiredParams) {
-            return false;
+            throw new UnacceptableSignatureError('Missing required signature parameters');
         }
         // this could be tricky, what if we say "@method" but there is "@method;req"
         const hasRequiredFields = requiredFields.every((field) => input[0].some(([fieldName]) => fieldName === field));
         if (!hasRequiredFields) {
-            return false;
+            throw new UnacceptableSignatureError('Missing required signed fields');
         }
         if (input[1].has('created')) {
             const created = input[1].get('created') as number - tolerance;
             // maxAge overrides expires.
             // signature is older than maxAge
-            if (maxAge && created - now > maxAge) {
-                return false;
-            }
-            // created after the allowed time (ie: created in the future)
-            if (created > notAfter) {
-                return false;
+            if ((maxAge && now - created > maxAge) || created > notAfter) {
+                throw new ExpiredError('Signature is too old');
             }
         }
         if (input[1].has('expires')) {
             const expires = input[1].get('expires') as number + tolerance;
             // expired signature
-            if (expires > now) {
-                return false;
+            if (now > expires) {
+                throw new ExpiredError('Signature has expired');
             }
         }
 
@@ -434,29 +439,11 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         const base = formatSignatureBase(signingBase);
         const signature = signatures.get(name);
         if (!signature) {
-            throw new Error('No signature found for inputs');
+            throw new MalformedSignatureError('No corresponding signature for input');
         }
         if (!isByteSequence(signature[0] as BareItem)) {
-            throw new Error('Malformed signature');
+            throw new MalformedSignatureError('Malformed signature');
         }
-        return key.verify(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), Array.from(input[1].entries()).reduce((params, [key, value]) => {
-            let val: Date | number | string;
-            switch (key.toLowerCase()) {
-                case 'created':
-                case 'expires':
-                    val = new Date((value as number) * 1000);
-                    break;
-                default: {
-                    if (typeof value === 'string' || typeof value=== 'number') {
-                        val = value;
-                    } else {
-                        val = value.toString();
-                    }
-                }
-            }
-            return Object.assign(params, {
-                [key]: val,
-            });
-        }, {}));
+        return key.verify(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), signatureParams);
     }, Promise.resolve(null));
 }

@@ -49,7 +49,7 @@ describe('rsa-pss-sha512', () => {
     describe('specification examples', () => {
         let rsaKeyPem: string;
         before('load rsa key', async () => {
-            rsaKeyPem = (await promisify(readFile)(join(__dirname, '../etc/rsa-pss.pem'))).toString();
+            rsaKeyPem = (await promisify(readFile)(join(__dirname, '../etc/test-key-rsa-pss.pem'))).toString();
         });
         describe('minimal example', () => {
             const data = Buffer.from('"@signature-params": ();created=1618884475;keyid="test-key-rsa-pss";alg="rsa-pss-sha512"');

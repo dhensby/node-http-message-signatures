@@ -14,6 +14,7 @@ import {
 } from 'crypto';
 import { RSA_PKCS1_PADDING, RSA_PKCS1_PSS_PADDING } from 'constants';
 import { SigningKey, Algorithm, Verifier } from '../types';
+import { UnknownAlgorithmError } from '../errors';
 
 /**
  * A helper method for easier consumption of the library.
@@ -59,7 +60,7 @@ export function createSigner(key: BinaryLike | KeyLike | SignKeyObjectInput | Si
             // signer.sign = async (data: Buffer) => createSign('ed25519').update(data).sign(key as KeyLike);
             break;
         default:
-            throw new Error(`Unsupported signing algorithm ${alg}`);
+            throw new UnknownAlgorithmError(`Unsupported signing algorithm ${alg}`);
     }
     if (id) {
         signer.id = id;
@@ -116,7 +117,7 @@ export function createVerifier(key: BinaryLike | KeyLike | VerifyKeyObjectInput 
             verifier = async (data: Buffer, signature: Buffer) => verify(null, data, key as KeyLike, signature) as unknown as boolean;
             break;
         default:
-            throw new Error(`Unsupported signing algorithm ${alg}`);
+            throw new UnknownAlgorithmError(`Unsupported signing algorithm ${alg}`);
     }
     return Object.assign(verifier, { alg });
 }

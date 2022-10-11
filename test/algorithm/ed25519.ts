@@ -41,7 +41,7 @@ describe('ed25519', () => {
     describe('specification examples', () => {
         let ecKeyPem: string;
         before('load rsa key', async () => {
-            ecKeyPem = (await promisify(readFile)(join(__dirname, '../etc/ed25519.pem'))).toString();
+            ecKeyPem = (await promisify(readFile)(join(__dirname, '../etc/test-key-ed25519.pem'))).toString();
         });
         describe('response signing', () => {
             const data = Buffer.from('"date": Tue, 20 Apr 2021 02:07:55 GMT\n' +
