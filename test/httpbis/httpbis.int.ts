@@ -1,6 +1,6 @@
 import * as http from 'http';
 import * as http2 from 'http2';
-import { Server } from 'net';
+import { Server, Socket } from 'net';
 import { expect } from 'chai';
 import {
     createVerifier,
@@ -51,7 +51,11 @@ function createHttpServer(config: ServerConfig): TestServer {
 
 function createHttp2Server(config: ServerConfig): TestServer {
     const requests: Request[] = [];
+    const connections: Socket[] = [];
     const server = http2.createServer();
+    server.on('connection', (conn) => {
+        connections.push(conn);
+    });
     server.on('stream', (stream, headers) => {
         const domain = headers[':authority'] ?? 'localhost';
         const request: Request = {
@@ -67,9 +71,28 @@ function createHttp2Server(config: ServerConfig): TestServer {
             server.once('listening', () => resolve());
             server.listen(config.port);
         }),
-        stop: () => new Promise<void>((resolve) => server.close(() => resolve())),
+        stop: () => new Promise<void>((resolve) => {
+            Promise.all(connections.map((conn) => new Promise<void>((done) => {
+                if (conn.destroyed) {
+                    done();
+                } else {
+                    conn.destroy();
+                    conn.on('close', done);
+                }
+            }))).then(() => server.close(() => resolve()));
+        }),
         requests,
-        clear: () => requests.splice(0),
+        clear: () => new Promise<void>((resolve) => {
+            requests.splice(0);
+            Promise.all(connections.map((conn) => new Promise<void>((closed) => {
+                if (conn.destroyed) {
+                    closed();
+                } else {
+                    conn.destroy();
+                    conn.on('close', closed);
+                }
+            }))).then(() => resolve());
+        }),
     };
 }
 
@@ -94,7 +117,7 @@ function makeHttpRequest(request: Request, port?: number): Promise<http.Incoming
     });
 }
 
-function makeHttp2Request(request: Request, port?: number): Promise<{ headers: Record<string, string | string[]>; body: Buffer; }> {
+function makeHttp2Request(request: Request & { body?: string; }, port?: number): Promise<{ headers: Record<string, string | string[]>; body: Buffer; }> {
     return new Promise<{ headers: Record<string, string | string[]>; body: Buffer; }>((resolve, reject) => {
         const url = typeof request.url === 'string' ? new URL(request.url) : request.url;
         const client = http2.connect(request.url, {
@@ -114,22 +137,20 @@ function makeHttp2Request(request: Request, port?: number): Promise<{ headers: R
             ':path': `${url.pathname}${url.search}`,
         });
         let headers: Record<string, string | string[]>;
-        req.end();
+        req.end(request.body);
         req.on('response', (h) => {
             headers = h as Record<string, string | string[]>;
         });
         req.on('error', (e) => {
-            reject(e);
-            client.close();
+            client.close(() => reject(e));
         });
         const chunks: Buffer[] = [];
         req.on('data', (chunk) => chunks.push(chunk));
         req.on('end', () => {
-            client.close();
-            resolve({
+            client.close(() => resolve({
                 headers,
                 body: Buffer.concat(chunks),
-            });
+            }));
         });
     });
 }
@@ -443,7 +464,9 @@ describe('httpbis', () => {
                     'signature': 'sig-b24=:MEYCIQDXrmWrcxKWLQQm0zlwbFr5/KAlB9oHkfMpNRVCuGVHjQIhAKtljVKRuRoWv5dCKuc+GgP3eqLAq+Eg0d3olyR67BYK:',
                 });
                 stream.end('{"message": "good dog"}');
-                stream.close();
+                stream.close(undefined, () => {
+                    console.log('closed');
+                });
             });
             return server.start();
         });
@@ -465,6 +488,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b21=();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                         'Signature': 'sig-b21=:d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
@@ -498,6 +522,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b21=();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                         'Signature': 'sig-b21=:d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
@@ -537,6 +562,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b22=("@authority" "content-digest" "@query-param";name="Pet");created=1618884473;keyid="test-key-rsa-pss";tag="header-example"',
                         'Signature': 'sig-b22=:LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw==:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
@@ -570,6 +596,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b23=("date" "@method" "@path" "@query" "@authority" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-rsa-pss"',
                         'Signature': 'sig-b23=:bbN8oArOxYoyylQQUU6QYwrTuaxLwjAC9fbY2F6SVWvh0yBiMIRGOnMYwZ/5MR6fb0Kh1rIRASVxFkeGt683+qRpRRU5p2voTp768ZrCUb38K0fUxN0O0iC59DzYx8DFll5GmydPxSmme9v6ULbMFkl+V5B1TP/yPViV7KsLNmvKiLJH1pFkh/aYA2HXXZzNBXmIkoQoLd7YfW91kE9o/CCoC1xMy7JA1ipwvKvfrs65ldmlu9bpG6A9BmzhuzF8Eim5f8ui9eH8LZH896+QIF61ka39VBrohr9iyMUJpvRX2Zbhl5ZJzSRxpJyoEZAFL2FUo5fTIztsDZKEgM4cUA==:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
@@ -605,6 +632,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b23=("date" "@method" "@path" "@query" "@authority" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-rsa-pss"',
                         'Signature': 'sig-b23=:bbN8oArOxYoyylQQUU6QYwrTuaxLwjAC9fbY2F6SVWvh0yBiMIRGOnMYwZ/5MR6fb0Kh1rIRASVxFkeGt683+qRpRRU5p2voTp768ZrCUb38K0fUxN0O0iC59DzYx8DFll5GmydPxSmme9v6ULbMFkl+V5B1TP/yPViV7KsLNmvKiLJH1pFkh/aYA2HXXZzNBXmIkoQoLd7YfW91kE9o/CCoC1xMy7JA1ipwvKvfrs65ldmlu9bpG6A9BmzhuzF8Eim5f8ui9eH8LZH896+QIF61ka39VBrohr9iyMUJpvRX2Zbhl5ZJzSRxpJyoEZAFL2FUo5fTIztsDZKEgM4cUA==:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
@@ -643,6 +671,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b25=("date" "@authority" "content-type");created=1618884473;keyid="test-shared-secret"',
                         'Signature': 'sig-b25=:pxcQw6G3AjtMBQjwo8XzkZf/bws5LelbaMk5rGIGtE8=:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
@@ -678,6 +707,7 @@ describe('httpbis', () => {
                         'Signature-Input': 'sig-b26=("date" "@method" "@path" "@authority" "content-type" "content-length");created=1618884473;keyid="test-key-ed25519"',
                         'Signature': 'sig-b26=:wqcAqbmYJ2ji2glfAMaRy4gruYYnx2nEFN2HN6jrnDnQCK1u02Gb04v9EDgwUPiu4A0w6vuQv5lIp5WPpBKRCw==:',
                     },
+                    body: '{"hello": "world"}',
                 }, 8080);
                 expect(server.requests).to.have.lengthOf(1);
                 const [request] = server.requests;
