@@ -10,12 +10,17 @@ on:
       - 'dependabot/**'
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     name: Linting check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Code linting
         uses: actions/setup-node@v2
         with:
@@ -32,7 +37,9 @@ jobs:
         node-version: [12.x, 14.x, 16.x, 18.x]
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+        with:
+          persist-credentials: false
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v2
         with:
