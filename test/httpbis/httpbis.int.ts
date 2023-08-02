@@ -464,9 +464,7 @@ describe('httpbis', () => {
                     'signature': 'sig-b24=:MEYCIQDXrmWrcxKWLQQm0zlwbFr5/KAlB9oHkfMpNRVCuGVHjQIhAKtljVKRuRoWv5dCKuc+GgP3eqLAq+Eg0d3olyR67BYK:',
                 });
                 stream.end('{"message": "good dog"}');
-                stream.close(undefined, () => {
-                    console.log('closed');
-                });
+                stream.close();
             });
             return server.start();
         });
