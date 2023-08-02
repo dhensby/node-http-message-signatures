@@ -9,15 +9,61 @@ of HTTP messages before being sent.
 
 Two specifications are supported by this library:
 
-1. [HTTPBIS](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-06#appendix-B.2)
-2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures-12)
+1. [HTTPbis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures)
+2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) and subsequent [RichAnna](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
 
 ## Approach
 
-As the cavage specification is now expired and superseded by the HTTPBIS one, this library takes a
-"HTTPBIS-first" approach. This means that most support and maintenance will go into the HTTPBIS
-implementation and syntax. The syntax is then back-ported to the Cavage implementation as much as
-possible.
+As the Cavage/RichAnna specification is now expired and superseded by the HTTPbis one, this library takes a
+"HTTPbis-first" approach. This means that most support and maintenance will go into the HTTPbis
+implementation and syntax. The syntax is then back-ported to the as much as possible.
+
+## Caveats
+
+The Cavage/RichAnna specifications have changed over time, introducing new features. The aim is to support
+the [latest version of the specification](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
+and not to try to support each version in isolation.
+
+## Limitations in compliance with the specification
+
+As with many libraries and environments, HTTP Requests and Responses are abstracted away from the
+developer. This fact is noted in the specification. As such (in compliance with the specification),
+consumers of this library should take care to make sure that they are processing signatures that
+only cover fields/components whose values can be reliably resolved. Below is a list of limitations
+that you should be aware of when selecting a list of parameters to sign or accept.
+
+### Derived component limitations
+
+Many of the derived components are expected to be sourced from what are effectively http2 pseudo
+headers. However, if the application is not running in http2 mode or the message being signed is
+not being built as a http2 message, then some of these pseudo headers will not be available to the
+application and must be derived from a URL.
+
+#### @request-target
+
+The [`@request-target`](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-2.2.5)
+component is intended to be the equivalent to the "request target portion of the request line".
+See the specification for examples of what this means. In NodeJS, this line in requests is automatically
+constructed for consumers, so it's not possible to know for certainty what this will be. For incoming
+requests, it is possible to extract, but for simplicity’s sake this library does not process the raw
+headers for the incoming request and, as such, cannot calculate this value with certainty. It is
+recommended that this component is avoided.
+
+### Multiple message component contexts
+
+As described in [section 7.4.4](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-7.4.4)
+it is deemed that complex message context resolution is outside the scope of this library.
+
+This means that it is the responsibility of the consumer of this library to construct the equivalent
+message context for signatures that need to be reinterpreted based on other signer contexts.
+
+
+### Padding attacks
+
+As described in [section 7.5.7](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-13#section-7.5.7)
+it is expected that the NodeJS application has taken steps to ensure that headers are valid and not
+"garbage". For this library to take on that obligation would be to widen the scope of the library to
+a complete HTTP Message validator.
 
 ## Examples
 

@@ -23,43 +23,42 @@ describe('ecdsa-p256-sha256', () => {
         });
         describe('signing', () => {
             it('signs a payload', async () => {
-                const signer = createSigner('ecdsa-p256-sha256', ecdsaKeyPair.privateKey);
-                const data = 'some random data';
-                const sig = await signer(data);
+                const signer = createSigner(ecdsaKeyPair.privateKey, 'ecdsa-p256-sha256');
+                const data = Buffer.from('some random data');
+                const sig = await signer.sign(data);
                 expect(signer.alg).to.equal('ecdsa-p256-sha256');
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', Buffer.from(data), ecdsaKeyPair.publicKey, arg));
+                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', data, ecdsaKeyPair.publicKey, arg));
             });
         });
         describe('verifying', () => {
             it('verifies a signature', async () => {
-                const verifier = createVerifier('ecdsa-p256-sha256', ecdsaKeyPair.publicKey);
-                const data = 'some random data';
-                const sig = sign('sha512', Buffer.from(data), ecdsaKeyPair.privateKey);
-                expect(verifier.alg).to.equal('ecdsa-p256-sha256');
+                const verifier = createVerifier(ecdsaKeyPair.publicKey, 'ecdsa-p256-sha256');
+                const data = Buffer.from('some random data');
+                const sig = sign('sha256', data, ecdsaKeyPair.privateKey);
                 expect(sig).to.satisfy((arg: Buffer) => verifier(data, arg));
             });
         });
     });
     describe('specification examples', () => {
         let ecKeyPem: string;
-        before('load rsa key', async () => {
-            ecKeyPem = (await promisify(readFile)(join(__dirname, '../etc/ecdsa-p256.pem'))).toString();
+        before('load key', async () => {
+            ecKeyPem = (await promisify(readFile)(join(__dirname, '../etc/test-key-ecc-p256.pem'))).toString();
         });
         describe('response signing', () => {
-            const data = '"content-type": application/json\n' +
-                '"digest": SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=\n' +
-                '"content-length": 18\n' +
-                '"@signature-params": ("content-type" "digest" "content-length");created=1618884475;keyid="test-key-ecc-p256"';
+            const data = Buffer.from('"@status": 200\n' +
+                '"content-type": application/json\n' +
+                '"content-digest": sha-512=:mEWXIS7MaLRuGgxOBdODa3xqM1XdEvxoYhvlCFJ41QJgJc4GTsPp29l5oGX69wWdXymyU0rjJuahq4l5aGgfLQ==:\n' +
+                '"content-length": 23\n' +
+                '"@signature-params": ("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"');
             it('successfully signs a payload', async () => {
-                const sig = await (createSigner('ecdsa-p256-sha256', ecKeyPem)(data));
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', Buffer.from(data), ecKeyPem, arg));
+                const sig = await (createSigner(ecKeyPem, 'ecdsa-p256-sha256').sign(data));
+                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', data, ecKeyPem, arg));
             });
-            // seems to be broken in node - Error: error:0D07209B:asn1 encoding routines:ASN1_get_object:too long
+            // seems to be broken in node - Error: error:0D07207B:asn1 encoding routines:ASN1_get_object:header too long
             // could be to do with https://stackoverflow.com/a/39575576
             it.skip('successfully verifies a signature', async () => {
-                const sig = Buffer.from('n8RKXkj0iseWDmC6PNSQ1GX2R9650v+lhbb6rTGoSrSSx18zmn6fPOtBx48/WffYLO0n1RHHf9scvNGAgGq52Q==', 'base64');
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', Buffer.from(data), ecKeyPem, arg));
-                expect(await (createVerifier('ecdsa-p256-sha256', ecKeyPem)(data, sig))).to.equal(true);
+                const sig = Buffer.from('wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==', 'base64');
+                expect(await (createVerifier(ecKeyPem, 'ecdsa-p256-sha256')(data, sig))).to.equal(true);
             });
         });
     });

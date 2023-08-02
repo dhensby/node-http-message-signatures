@@ -24,11 +24,11 @@ describe('rsa-pss-sha512', () => {
         });
         describe('signing', () => {
             it('signs a payload', async () => {
-                const signer = createSigner('rsa-pss-sha512', rsaKeyPair.privateKey);
-                const data = 'some random data';
-                const sig = await signer(data);
+                const signer = createSigner(rsaKeyPair.privateKey, 'rsa-pss-sha512');
+                const data = Buffer.from('some random data');
+                const sig = await signer.sign(data);
                 expect(signer.alg).to.equal('rsa-pss-sha512');
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha512', Buffer.from(data), {
+                expect(sig).to.satisfy((arg: Buffer) => verify('sha512', data, {
                     key: rsaKeyPair.publicKey,
                     padding: RSA_PKCS1_PSS_PADDING,
                 }, arg));
@@ -36,13 +36,12 @@ describe('rsa-pss-sha512', () => {
         });
         describe('verifying', () => {
             it('verifies a signature', async () => {
-                const verifier = createVerifier('rsa-pss-sha512', rsaKeyPair.publicKey);
-                const data = 'some random data';
-                const sig = sign('sha512', Buffer.from(data), {
+                const verifier = createVerifier(rsaKeyPair.publicKey, 'rsa-pss-sha512');
+                const data = Buffer.from('some random data');
+                const sig = sign('sha512', data, {
                     key: rsaKeyPair.privateKey,
                     padding: RSA_PKCS1_PSS_PADDING,
                 });
-                expect(verifier.alg).to.equal('rsa-pss-sha512');
                 expect(sig).to.satisfy((arg: Buffer) => verifier(data, arg));
             });
         });
@@ -50,12 +49,12 @@ describe('rsa-pss-sha512', () => {
     describe('specification examples', () => {
         let rsaKeyPem: string;
         before('load rsa key', async () => {
-            rsaKeyPem = (await promisify(readFile)(join(__dirname, '../etc/rsa-pss.pem'))).toString();
+            rsaKeyPem = (await promisify(readFile)(join(__dirname, '../etc/test-key-rsa-pss.pem'))).toString();
         });
         describe('minimal example', () => {
-            const data = '"@signature-params": ();created=1618884475;keyid="test-key-rsa-pss";alg="rsa-pss-sha512"';
+            const data = Buffer.from('"@signature-params": ();created=1618884475;keyid="test-key-rsa-pss";alg="rsa-pss-sha512"');
             it('successfully signs a payload', async () => {
-                const sig = await createSigner('rsa-pss-sha512', rsaKeyPem)(data);
+                const sig = await createSigner(rsaKeyPem, 'rsa-pss-sha512').sign(data);
                 expect(sig).to.satisfy((arg: Buffer) => verify('sha512', Buffer.from(data), {
                     key: rsaKeyPem,
                     padding: RSA_PKCS1_PSS_PADDING,
@@ -68,15 +67,15 @@ describe('rsa-pss-sha512', () => {
                     'cZgLxVwialuH5VnqJS4JN8PHD91XLfkjMscTo4jmVMpFd3iLVe0hqVFl7MDt6TMkw' +
                     'IyVFnEZ7B/VIQofdShO+C/7MuupCSLVjQz5xA+Zs6Hw+W9ESD/6BuGs6LF1TcKLxW' +
                     '+5K+2zvDY/Cia34HNpRW5io7Iv9/b7iQ==', 'base64');
-                expect(await createVerifier('rsa-pss-sha512', rsaKeyPem)(data, sig)).to.equal(true);
+                expect(await createVerifier(rsaKeyPem, 'rsa-pss-sha512')(data, sig)).to.equal(true);
             });
         });
         describe('selective example', () => {
-            const data = '"@authority": example.com\n' +
+            const data = Buffer.from('"@authority": example.com\n' +
                 '"content-type": application/json\n' +
-                '"@signature-params": ("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"';
+                '"@signature-params": ("@authority" "content-type");created=1618884475;keyid="test-key-rsa-pss"');
             it('successfully signs a payload', async () => {
-                const sig = await createSigner('rsa-pss-sha512', rsaKeyPem)(data);
+                const sig = await createSigner(rsaKeyPem, 'rsa-pss-sha512').sign(data);
                 expect(sig).to.satisfy((arg: Buffer) => verify('sha512', Buffer.from(data), {
                     key: rsaKeyPem,
                     padding: RSA_PKCS1_PSS_PADDING,
@@ -89,11 +88,11 @@ describe('rsa-pss-sha512', () => {
                     'uy2SfZJUhsJqZyEWRk4204x7YEB3VxDAAlVgGt8ewilWbIKKTOKp3ymUeQIwptqYw' +
                     'v0l8mN404PPzRBTpB7+HpClyK4CNp+SVv46+6sHMfJU4taz10s/NoYRmYCGXyadzY' +
                     'YDj0BYnFdERB6NblI/AOWFGl5Axhhmjg==', 'base64');
-                expect(await createVerifier('rsa-pss-sha512', rsaKeyPem)(data, sig)).to.equal(true);
+                expect(await createVerifier(rsaKeyPem, 'rsa-pss-sha512')(data, sig)).to.equal(true);
             });
         });
         describe('full example', () => {
-            const data = '"date": Tue, 20 Apr 2021 02:07:56 GMT\n' +
+            const data = Buffer.from('"date": Tue, 20 Apr 2021 02:07:56 GMT\n' +
                 '"@method": POST\n' +
                 '"@path": /foo\n' +
                 '"@query": ?param=value&pet=dog\n' +
@@ -101,9 +100,9 @@ describe('rsa-pss-sha512', () => {
                 '"content-type": application/json\n' +
                 '"digest": SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=\n' +
                 '"content-length": 18\n' +
-                '"@signature-params": ("date" "@method" "@path" "@query" "@authority" "content-type" "digest" "content-length");created=1618884475;keyid="test-key-rsa-pss"';
+                '"@signature-params": ("date" "@method" "@path" "@query" "@authority" "content-type" "digest" "content-length");created=1618884475;keyid="test-key-rsa-pss"');
             it('successfully signs a payload', async () => {
-                const sig = await createSigner('rsa-pss-sha512', rsaKeyPem)(data);
+                const sig = await createSigner(rsaKeyPem, 'rsa-pss-sha512').sign(data);
                 expect(sig).to.satisfy((arg: Buffer) => verify('sha512', Buffer.from(data), {
                     key: rsaKeyPem,
                     padding: RSA_PKCS1_PSS_PADDING,
@@ -116,7 +115,7 @@ describe('rsa-pss-sha512', () => {
                     'T/oBtxPtAn1eFjUyIKyA+XD7kYph82I+ahvm0pSgDPagu917SlqUjeaQaNnlZzO03' +
                     'Iy1RZ5XpgbNeDLCqSLuZFVID80EohC2CQ1cL5svjslrlCNstd2JCLmhjL7xV3NYXe' +
                     'rLim4bqUQGRgDwNJRnqobpS6C1NBns/Q==', 'base64');
-                expect(await createVerifier('rsa-pss-sha512', rsaKeyPem)(data, sig)).to.equal(true);
+                expect(await createVerifier(rsaKeyPem, 'rsa-pss-sha512')(data, sig)).to.equal(true);
             });
         });
     });
