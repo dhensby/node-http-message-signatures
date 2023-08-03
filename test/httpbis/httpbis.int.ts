@@ -12,6 +12,7 @@ import {
 import { promises as fs } from 'fs';
 import { parse } from 'path';
 import { stub } from 'sinon';
+import { lookup, LookupOneOptions } from 'dns';
 
 interface ServerConfig {
     port: number;
@@ -100,12 +101,8 @@ function makeHttpRequest(request: Request, port?: number): Promise<http.Incoming
     return new Promise<http.IncomingMessage>((resolve, reject) => {
         const url = typeof request.url === 'string' ? new URL(request.url) : request.url;
         const req = http.request({
-            lookup: (hostname, options, callback) => {
-                if (options.family === 6) {
-                    callback(null, '::1', 6);
-                } else {
-                    callback(null, '127.0.0.1', 4);
-                }
+            lookup: (hostname: string, options: LookupOneOptions, callback) => {
+                lookup('localhost', options, callback);
             },
             hostname: url.hostname,
             port: port ?? url.port ?? 80,
@@ -121,12 +118,8 @@ function makeHttp2Request(request: Request & { body?: string; }, port?: number):
     return new Promise<{ headers: Record<string, string | string[]>; body: Buffer; }>((resolve, reject) => {
         const url = typeof request.url === 'string' ? new URL(request.url) : request.url;
         const client = http2.connect(request.url, {
-            lookup: (hostname, options, callback) => {
-                if (options.family === 6) {
-                    callback(null, '::1', 6);
-                } else {
-                    callback(null, '127.0.0.1', 4);
-                }
+            lookup: (hostname: string, options: LookupOneOptions, callback) => {
+                lookup('localhost', options, callback);
             },
             // host: url.host,
             port: port ?? parseInt(url.port, 10) ?? 80,
@@ -198,7 +191,8 @@ describe('httpbis', () => {
             return server.start();
         });
         beforeEach('reset requests', () => server.clear());
-        after('stop server', async () => {
+        after('stop server', async function stopServer () {
+            this.timeout(5000);
             return server.stop();
         });
         describe('rsa-pss-sha512', () => {
