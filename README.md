@@ -2,27 +2,32 @@
 
 [![Node.js CI](https://github.com/dhensby/node-http-message-signatures/actions/workflows/nodejs.yml/badge.svg)](https://github.com/dhensby/node-http-message-signatures/actions/workflows/nodejs.yml)
 
-Based on the draft specifications for HTTP Message Signatures, this library facilitates the signing
-of HTTP messages before being sent.
+This library provides a way to perform HTTP message signing as per the HTTP Working Group draft specification for
+[HTTP Message Signatures](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures).
+
+HTTP Message Signatures are designed to provide a way to verify the authenticity and integrity of *parts* of an HTTP
+message by performing a deterministic serialisation of components of an HTTP Message. More details can be found in the
+specifications.
 
 ## Specifications
 
 Two specifications are supported by this library:
 
-1. [HTTPbis](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures)
-2. [Cavage](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures) and subsequent [RichAnna](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
+1. [HTTP Working Group spec](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures)
+2. [Network Working Group spec](https://datatracker.ietf.org/doc/html/draft-cavage-http-signatures)
 
 ## Approach
 
-As the Cavage/RichAnna specification is now expired and superseded by the HTTPbis one, this library takes a
-"HTTPbis-first" approach. This means that most support and maintenance will go into the HTTPbis
-implementation and syntax. The syntax is then back-ported to the as much as possible.
+As the Network WG specification is now expired and superseded by the HTTP WG one. This library takes a
+"HTTP WG" approach. This means that most support and maintenance will go into the HTTP WG
+implementation and syntax. The syntax is then back-ported to the legacy specification as much as possible.
 
 ## Caveats
 
-The Cavage/RichAnna specifications have changed over time, introducing new features. The aim is to support
-the [latest version of the specification](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
-and not to try to support each version in isolation.
+The specifications are in draft and are liable to change over time, introducing new features and removing existing ones.
+The aim is to support the [latest version of the specification](https://datatracker.ietf.org/doc/html/draft-richanna-http-message-signatures)
+and not to try to support each version in isolation. However, this library was last updated against
+[revision 13](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-13) of the HTTP WG specification.
 
 ## Limitations in compliance with the specification
 
@@ -43,7 +48,7 @@ application and must be derived from a URL.
 
 The [`@request-target`](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-2.2.5)
 component is intended to be the equivalent to the "request target portion of the request line".
-See the specification for examples of what this means. In NodeJS, this line in requests is automatically
+See the specification for examples of what this means. In Node.js, this line in requests is automatically
 constructed for consumers, so it's not possible to know for certainty what this will be. For incoming
 requests, it is possible to extract, but for simplicity’s sake this library does not process the raw
 headers for the incoming request and, as such, cannot calculate this value with certainty. It is
@@ -61,51 +66,232 @@ message context for signatures that need to be reinterpreted based on other sign
 ### Padding attacks
 
 As described in [section 7.5.7](https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures-13#section-7.5.7)
-it is expected that the NodeJS application has taken steps to ensure that headers are valid and not
+it is expected that the Node.js application has taken steps to ensure that headers are valid and not
 "garbage". For this library to take on that obligation would be to widen the scope of the library to
 a complete HTTP Message validator.
 
 ## Examples
 
-### Signing a request
+> NB: These examples show the "minimal" signature implementation. That is, they provider a proof of possession of the
+key by the sender, but don't provide any integrity over the message. To do that, you must add HTTP fields / components
+to the signing object. Please see the tests for further examples, or the type definitions.
+
+### Signing a request (Node.js)
+
+This library has built-in signers/verifiers for Node.js using the native `cryto` package to perform all the required
+cryptographic operations. However, this is designed to be easily replaced with any other crypto library/runtime 
+including `SubtleCrypto` or even a hosted KMS (Key Management Service).
 
 ```js
-const { sign, createSigner } = require('http-message-signing');
+const { httpbis: { signMessage }, createSigner } = require('http-message-signatures');
 
 (async () => {
-    const signedRequest = await sign({
+    // create a signing key using Node's built in crypto engine.
+    // you can supply RSA kets, ECDSA, or ED25519 keys.
+    const key = createSigner('sharedsecret', 'hmac-sha256', 'my-key-id');
+    // minimal signing of a request - more aspects of the request can be signed by providing additional
+    // parameters to the first argument of signMessage.
+    const signedRequest = await signMessage({
+        key,
+    }, {
         method: 'POST',
         url: 'https://example.com',
         headers: {
-            'content-type': 'text/plain',
+            'content-type': 'application/json',
+            'content-digest': 'sha-512=:YMAam51Jz/jOATT6/zvHrLVgOYTGFy1d6GJiOHTohq4yP+pgk4vf2aCsyRZOtw8MjkM7iw7yZ/WkppmM44T3qg==:',
+            'content-length': '19',
         },
-        body: 'test',
-    }, {
-        components: [
-            '@method',
-            '@authority',
-            'content-type',
-        ],
-        parameters: {
-            created: Math.floor(Date.now() / 1000),
-        },
-        keyId: 'my-hmac-secret',
-        signer: createSigner('hmac-sha256'),
+        body: '{"hello": "world"}\n',
     });
     // signedRequest now has the `Signature` and `Signature-Input` headers
+    console.log(signedRequest);
 })().catch(console.error);
+```
+
+This will output the following object (note the new `Signature` and `Signature-Input` headers):
+
+```js
+{
+  method: 'POST',
+  url: 'https://example.com',
+  headers: {
+    'content-type': 'application/json',
+    'content-digest': 'sha-512=:YMAam51Jz/jOATT6/zvHrLVgOYTGFy1d6GJiOHTohq4yP+pgk4vf2aCsyRZOtw8MjkM7iw7yZ/WkppmM44T3qg==:',
+    'content-length': '19',
+    'Signature': 'sig=:RkplfaUzQ4xIkSVP9hT+Y55yAYX9VwSeHmjS5X7d0fE=:',
+    'Signature-Input': 'sig=();keyid="my-key-id";alg="hmac-sha256";created=1700669009;expires=1700669309'
+  },
+  body: '{"hello": "world"}\n'
+}
 ```
 
 ### Signing with your own signer
 
 It's possible to provide your own signer (this is useful if you're using a secure enclave or key
-management service). To do so, you must implement a callable that has the `alg` prop set to a valid
-algorithm value. It's possible to use proprietary algorithm values if you have some internal signing
-logic you need to support.
+management service). To do so, you must create an object that conforms to the `SigningKey` interface.
+
+For example, using SubtleCrypto:
 
 ```js
-const mySigner = async (data) => {
-    return Buffer.from('my sig');
+const { webcrypto: crypto } = require('node:crypto');
+
+function createMySigner() {
+    return {
+        id: 'my-key-id',
+        alg: 'hmac-sha256',
+        async sign(data) {
+            const key = await crypto.subtle.importKey('raw', Buffer.from('sharedsecret'), {
+                name: 'HMAC',
+                hash: 'SHA-256',
+            }, true, ['sign', 'verify']);
+            return Buffer.from(await crypto.subtle.sign('HMAC', key, data));
+        },
+    };
 }
-mySigner.alg = 'custom-123';
+```
+
+### Verifying a request
+
+Verifying a message requires that there is a key-store that can be used to look-up keys based on the signature parameters,
+for example via the signatures `keyid`.
+
+```js
+const { httpbis: { verifyMessage }, createVerifier } = require('http-message-signatures');
+
+(async () => {
+    // an example keystore for looking up keys by ID
+    const keys = new Map();
+    keys.set('my-key-id', {
+        id: 'my-key-id',
+        algs: ['hmac-sha256'],
+        // as with signing, you can provide your own verifier here instead of using the built-in helpers
+        verify: createVerifier('sharedsecret', 'hmac-sha256'),
+    });
+    // minimal verification
+    const verified = await verifyMessage({
+        // logic for finding a key based on the signature parameters
+        async keyLookup(params) {
+            const keyId = params.keyid;
+            // lookup and return key - note, we could also lookup using the alg too (`params.alg`)
+            // if there is no key, `verifyMessage()` will throw an error
+            return keys.get(keyId);
+        },
+    }, {
+        method: 'POST',
+        url: 'https://example.com',
+        headers: {
+            'content-type': 'application/json',
+            'content-digest': 'sha-512=:YMAam51Jz/jOATT6/zvHrLVgOYTGFy1d6GJiOHTohq4yP+pgk4vf2aCsyRZOtw8MjkM7iw7yZ/WkppmM44T3qg==:',
+            'content-length': '19',
+            'signature': 'sig=:RkplfaUzQ4xIkSVP9hT+Y55yAYX9VwSeHmjS5X7d0fE=:',
+            'signature-input': 'sig=();keyid="my-key-id";alg="hmac-sha256";created=1700669009;expires=1700669309',
+        },
+    });
+    console.log(verified);
+})().catch(console.error);
+```
+
+### Verifying a response with request components
+
+The HTTP Message Signatures specification allows for responses to reference parts of the request and incorporate them
+within the signature, tightly binding the response to the request. If you expect that request bound signatures will be
+used, you can provide the request as an optional parameter to the `verifyMessage()` method:
+
+```js
+const { httpbis: { verifyMessage }, createVerifier } = require('http-message-signatures');
+
+(async () => {
+    // an example keystore for looking up keys by ID
+    const keys = new Map();
+    keys.set('my-key-id', {
+        id: 'my-key-id',
+        alg: 'hmac-sha256',
+        // as with signing, you can provide your own verifier here instead of using the built-in helpers
+        verify: createVerifier('sharedsecret', 'hmac-sha256'),
+    });
+    // minimal verification
+    const verified = await verifyMessage({
+        // logic for finding a key based on the signature parameters
+        async keyLookup(params) {
+            const keyId = params.keyid;
+            // lookup and return key - note, we could also lookup using the alg too (`params.alg`)
+            // if there is no key, `verifyMessage()` will throw an error
+            return keys.get(keyId);
+        },
+    }, {
+        // the response
+        status: 200,
+        headers: {
+            'content-type': 'application/json',
+            'content-digest': 'sha-512=:YMAam51Jz/jOATT6/zvHrLVgOYTGFy1d6GJiOHTohq4yP+pgk4vf2aCsyRZOtw8MjkM7iw7yZ/WkppmM44T3qg==:',
+            'content-length': '19',
+            'signature': 'sig=:RkplfaUzQ4xIkSVP9hT+Y55yAYX9VwSeHmjS5X7d0fE=:',
+            'signature-input': 'sig=();keyid="my-key-id";alg="hmac-sha256";created=1700669009;expires=1700669309',
+        },
+    }, {
+        // the request
+        method: 'POST',
+        url: 'https://example.com',
+        headers: {
+            'content-type': 'application/json',
+            'content-digest': 'sha-512=:YMAam51Jz/jOATT6/zvHrLVgOYTGFy1d6GJiOHTohq4yP+pgk4vf2aCsyRZOtw8MjkM7iw7yZ/WkppmM44T3qg==:',
+            'content-length': '19',
+            'signature': 'sig=:RkplfaUzQ4xIkSVP9hT+Y55yAYX9VwSeHmjS5X7d0fE=:',
+            'signature-input': 'sig=();keyid="my-key-id";alg="hmac-sha256";created=1700669009;expires=1700669309',
+        },
+    });
+    console.log(verified);
+})().catch(console.error);
+```
+
+### Verifying with your own verifier
+
+As with signing, it's possible to provide your own verifier (this is useful if you're running in an environment that
+may not have access to Node.js' native `crypto` package). To do so, you must create an object that conforms to the
+`VerifyingKey` interface.
+
+For example, using SubtleCrypto:
+
+```js
+const { webcrypto: crypto } = require('node:crypto');
+const { httpbis: { verifyMessage } } = require('http-message-signatures');
+
+(async () => {
+    // an example keystore for looking up keys by ID
+    const keys = new Map();
+    keys.set('my-key-id', {
+        id: 'my-key-id',
+        alg: 'hmac-sha256',
+        // provide a custom verify function
+        async verify(data, signature, parameters) {
+            const key = await crypto.subtle.importKey('raw', Buffer.from('sharedsecret'), {
+                name: 'HMAC',
+                hash: 'SHA-256',
+            }, true, ['sign', 'verify']);
+            return crypto.subtle.verify('HMAC', key, signature, data);
+        },
+    });
+    // minimal verification
+    const verified = await verifyMessage({
+        // logic for finding a key based on the signature parameters
+        async keyLookup(params) {
+            const keyId = params.keyid;
+            // lookup and return key - note, we could also lookup using the alg too (`params.alg`)
+            // if there is no key, `verifyMessage()` will throw an error
+            return keys.get(keyId);
+        },
+    }, {
+        // the request
+        method: 'POST',
+        url: 'https://example.com',
+        headers: {
+            'content-type': 'application/json',
+            'content-digest': 'sha-512=:YMAam51Jz/jOATT6/zvHrLVgOYTGFy1d6GJiOHTohq4yP+pgk4vf2aCsyRZOtw8MjkM7iw7yZ/WkppmM44T3qg==:',
+            'content-length': '19',
+            'signature': 'sig=:RkplfaUzQ4xIkSVP9hT+Y55yAYX9VwSeHmjS5X7d0fE=:',
+            'signature-input': 'sig=();keyid="my-key-id";alg="hmac-sha256";created=1700669009;expires=1700669309',
+        },
+    });
+    console.log(verified);
+})().catch(console.error);
 ```
