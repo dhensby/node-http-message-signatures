@@ -190,7 +190,7 @@ export async function signMessage<T extends Request | Response = Request | Respo
         }),
         `headers="${headerNames.join(' ')}"`,
         `signature="${signature.toString('base64')}"`,
-    ].join(', ');
+    ].join(',');
     return {
         ...message,
         headers: {

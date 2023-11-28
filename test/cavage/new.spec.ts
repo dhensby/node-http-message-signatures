@@ -347,7 +347,7 @@ describe('cavage', () => {
                     'Content-Type': 'application/json',
                     'Digest': 'SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=',
                     'Content-Length': '18',
-                    'Signature': 'keyId="rsa-key-1", algorithm="hs2019", created=1402170695, expires=1402170995, headers="(request-target) (created) (expires) host digest content-length", signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
+                    'Signature': 'keyId="rsa-key-1",algorithm="hs2019",created=1402170695,expires=1402170995,headers="(request-target) (created) (expires) host digest content-length",signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
                 });
                 expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
                     '(request-target): post /foo\n' +
@@ -388,7 +388,7 @@ describe('cavage', () => {
                     'Date': 'Tue, 20 Apr 2021 02:07:56 GMT',
                     'Content-Type': 'application/json',
                     'Content-Length': '62',
-                    'Signature': 'created=1618884479, keyId="test-key-ecc-p256", headers="content-length content-type", signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
+                    'Signature': 'created=1618884479,keyId="test-key-ecc-p256",headers="content-length content-type",signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
                 });
                 expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
                     'content-length: 62\n' +
