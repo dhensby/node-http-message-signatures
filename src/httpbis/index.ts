@@ -1,3 +1,4 @@
+import { base64 } from "@scure/base";
 import {
     BareItem,
     parseDictionary,
@@ -163,8 +164,8 @@ export function extractHeader(header: string, params: Map<string, string | numbe
     }
     if (params.has('bs')) {
         return [values.map((val) => {
-            const encoded = Buffer.from(val.trim().replace(/\n\s*/gm, ' '));
-            return `:${encoded.toString('base64')}:`
+            const encoded = new TextEncoder().encode(val.trim().replace(/\n\s*/gm, ' '));
+            return `:${base64.encode(encoded)}:`
         }).join(', ')];
     }
     // raw encoding
@@ -267,7 +268,7 @@ export function createSigningParameters(config: SignConfig): Parameters {
     }, new Map());
 }
 
-export function augmentHeaders(headers: Record<string, string | string[]>, signature: Buffer, signatureInput: string, name?: string): Record<string, string | string[]> {
+export function augmentHeaders(headers: Record<string, string | string[]>, signature: Uint8Array, signatureInput: string, name?: string): Record<string, string | string[]> {
     let signatureHeaderName = 'Signature';
     let signatureInputHeaderName = 'Signature-Input';
     let signatureHeader: DictionaryType = new Map();
@@ -300,7 +301,7 @@ export function augmentHeaders(headers: Record<string, string | string[]>, signa
         signatureName += count.toString();
     }
     // append our signature and signature-inputs to the headers and return
-    signatureHeader.set(signatureName, [new ByteSequence(signature.toString('base64')), new Map()]);
+    signatureHeader.set(signatureName, [new ByteSequence(base64.encode(signature)), new Map()]);
     inputHeader.set(signatureName, parseList(signatureInput)[0]);
     return {
         ...headers,
@@ -327,7 +328,7 @@ export async function signMessage<T extends Request | Response = Request | Respo
     signatureBase.push(['"@signature-params"', [signatureInput]]);
     const base = formatSignatureBase(signatureBase);
     // call sign
-    const signature = await config.key.sign(Buffer.from(base));
+    const signature = await config.key.sign(new TextEncoder().encode(base));
     return {
         ...message,
         headers: augmentHeaders({ ...message.headers }, signature, signatureInput, config.name),
@@ -444,6 +445,6 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         if (!isByteSequence(signature[0] as BareItem)) {
             throw new MalformedSignatureError('Malformed signature');
         }
-        return key.verify(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), signatureParams);
+        return key.verify(new TextEncoder().encode(base), base64.decode((signature[0] as ByteSequence).toBase64()), signatureParams);
     }, Promise.resolve(null));
 }

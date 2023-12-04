@@ -1,3 +1,4 @@
+import { base64 } from "@scure/base";
 import * as cavage from '../../src/cavage';
 import { Request, Response, SigningKey } from '../../src';
 import { expect } from 'chai';
@@ -166,7 +167,7 @@ describe('cavage', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                 }).entries())).to.deep.equal([
@@ -180,7 +181,7 @@ describe('cavage', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { created: null },
@@ -193,7 +194,7 @@ describe('cavage', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { expires: new Date(Date.now() + 600000) },
@@ -208,7 +209,7 @@ describe('cavage', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { keyid: '321' },
@@ -223,7 +224,7 @@ describe('cavage', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { alg: 'rsa321' },
@@ -238,7 +239,7 @@ describe('cavage', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                 }).entries())).to.deep.equal([
                     ['keyid', '123'],
@@ -249,7 +250,7 @@ describe('cavage', () => {
             it('handles missing keyid', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                 }).entries())).to.deep.equal([
                     ['created', 1664267652],
@@ -259,7 +260,7 @@ describe('cavage', () => {
             it('returns nothing if no data', () => {
                 expect(Array.from(cavage.createSigningParameters({
                     key: {
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     paramValues: { created: null },
                 }).entries())).to.deep.equal([]);
@@ -271,7 +272,7 @@ describe('cavage', () => {
                     key: {
                         id: '123',
                         alg: 'rsa',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     params: ['created', 'keyid', 'alg'],
                 }).entries())).to.deep.equal([
@@ -285,7 +286,7 @@ describe('cavage', () => {
                     key: {
                         id: '123',
                         alg: 'rsa',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     params: ['created', 'keyid', 'alg', 'custom'],
                     paramValues: { custom: 'value' },
@@ -314,7 +315,7 @@ describe('cavage', () => {
             let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
-                    sign: stub().resolves(Buffer.from('a fake signature')),
+                    sign: stub().resolves(new TextEncoder().encode('a fake signature')),
                 };
             });
             it('signs a request', async () => {
@@ -349,7 +350,7 @@ describe('cavage', () => {
                     'Content-Length': '18',
                     'Signature': 'keyId="rsa-key-1",algorithm="hs2019",created=1402170695,expires=1402170995,headers="(request-target) (created) (expires) host digest content-length",signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
                 });
-                expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
+                expect(signer.sign).to.have.been.calledOnceWithExactly(new TextEncoder().encode(
                     '(request-target): post /foo\n' +
                     '(created): 1402170695\n' +
                     '(expires): 1402170995\n' +
@@ -371,7 +372,7 @@ describe('cavage', () => {
             let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
-                    sign: stub().resolves(Buffer.from('a fake signature')),
+                    sign: stub().resolves(new TextEncoder().encode('a fake signature')),
                 };
             });
             it('signs a response', async () => {
@@ -390,7 +391,7 @@ describe('cavage', () => {
                     'Content-Length': '62',
                     'Signature': 'created=1618884479,keyId="test-key-ecc-p256",headers="content-length content-type",signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
                 });
-                expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
+                expect(signer.sign).to.have.been.calledOnceWithExactly(new TextEncoder().encode(
                     'content-length: 62\n' +
                     'content-type: application/json'
                 ));
@@ -421,7 +422,7 @@ describe('cavage', () => {
                 expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
-                    Buffer.from(
+                    new TextEncoder().encode(
                         '(request-target): post /foo?param=value&pet=dog\n' +
                         '(created): 1402170695\n' +
                         'host: example.com\n' +
@@ -430,7 +431,7 @@ describe('cavage', () => {
                         'digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=\n' +
                         'content-length: 18',
                     ),
-                    Buffer.from('KXUj1H3ZOhv3Nk4xlRLTn4bOMlMOmFiud3VXrMa9MaLCxnVmrqOX5BulRvB65YW/wQp0oT/nNQpXgOYeY8ovmHlpkRyz5buNDqoOpRsCpLGxsIJ9cX8XVsM9jy+Q1+RIlD9wfWoPHhqhoXt35ZkasuIDPF/AETuObs9QydlsqONwbK+TdQguDK/8Va1Pocl6wK1uLwqcXlxhPEb55EmdYB9pddDyHTADING7K4qMwof2mC3t8Pb0yoLZoZX5a4Or4FrCCKK/9BHAhq/RsVk0dTENMbTB4i7cHvKQu+o9xuYWuxyvBa0Z6NdOb0di70cdrSDEsL5Gz7LBY5J2N9KdGg==', 'base64'),
+                    base64.decode('KXUj1H3ZOhv3Nk4xlRLTn4bOMlMOmFiud3VXrMa9MaLCxnVmrqOX5BulRvB65YW/wQp0oT/nNQpXgOYeY8ovmHlpkRyz5buNDqoOpRsCpLGxsIJ9cX8XVsM9jy+Q1+RIlD9wfWoPHhqhoXt35ZkasuIDPF/AETuObs9QydlsqONwbK+TdQguDK/8Va1Pocl6wK1uLwqcXlxhPEb55EmdYB9pddDyHTADING7K4qMwof2mC3t8Pb0yoLZoZX5a4Or4FrCCKK/9BHAhq/RsVk0dTENMbTB4i7cHvKQu+o9xuYWuxyvBa0Z6NdOb0di70cdrSDEsL5Gz7LBY5J2N9KdGg=='),
                     {
                         created: new Date(1402170695 * 1000),
                         keyid: 'test-key-a',
@@ -459,14 +460,14 @@ describe('cavage', () => {
                 expect(result).to.equal(true);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
-                    Buffer.from(
+                    new TextEncoder().encode(
                         '(created): 1402170695\n' +
                         'date: Tue, 07 Jun 2014 20:51:35 GMT\n' +
                         'content-type: application/json\n' +
                         'digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=\n' +
                         'content-length: 18',
                     ),
-                    Buffer.from('KXUj1H3ZOhv3Nk4xlRLTn4bOMlMOmFiud3VXrMa9MaLCxnVmrqOX5BulRvB65YW/wQp0oT/nNQpXgOYeY8ovmHlpkRyz5buNDqoOpRsCpLGxsIJ9cX8XVsM9jy+Q1+RIlD9wfWoPHhqhoXt35ZkasuIDPF/AETuObs9QydlsqONwbK+TdQguDK/8Va1Pocl6wK1uLwqcXlxhPEb55EmdYB9pddDyHTADING7K4qMwof2mC3t8Pb0yoLZoZX5a4Or4FrCCKK/9BHAhq/RsVk0dTENMbTB4i7cHvKQu+o9xuYWuxyvBa0Z6NdOb0di70cdrSDEsL5Gz7LBY5J2N9KdGg==', 'base64'),
+                    base64.decode('KXUj1H3ZOhv3Nk4xlRLTn4bOMlMOmFiud3VXrMa9MaLCxnVmrqOX5BulRvB65YW/wQp0oT/nNQpXgOYeY8ovmHlpkRyz5buNDqoOpRsCpLGxsIJ9cX8XVsM9jy+Q1+RIlD9wfWoPHhqhoXt35ZkasuIDPF/AETuObs9QydlsqONwbK+TdQguDK/8Va1Pocl6wK1uLwqcXlxhPEb55EmdYB9pddDyHTADING7K4qMwof2mC3t8Pb0yoLZoZX5a4Or4FrCCKK/9BHAhq/RsVk0dTENMbTB4i7cHvKQu+o9xuYWuxyvBa0Z6NdOb0di70cdrSDEsL5Gz7LBY5J2N9KdGg=='),
                     {
                         created: new Date(1402170695 * 1000),
                         keyid: 'test-key-a',

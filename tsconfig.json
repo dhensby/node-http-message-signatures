@@ -6,7 +6,11 @@
     "outDir": "lib",
     "rootDir": "./src/",
     "sourceMap": true,
-    "newLine": "lf"
+    "newLine": "lf",
+    "lib": [
+      "es2017",
+      "dom"
+    ],
   },
   "exclude": ["test", "lib"]
 }
