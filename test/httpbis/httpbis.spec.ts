@@ -1,3 +1,4 @@
+import { base64 } from "@scure/base";
 import * as httpbis from '../../src/httpbis';
 import {
     ExpiredError,
@@ -1065,7 +1066,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                 }).entries())).to.deep.equal([
@@ -1079,7 +1080,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { created: null },
@@ -1092,7 +1093,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { created: new Date() },
@@ -1107,7 +1108,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { expires: new Date(Date.now() + 600000) },
@@ -1122,7 +1123,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { keyid: '321' },
@@ -1137,7 +1138,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                         alg: 'rsa123',
                     },
                     paramValues: { alg: 'rsa321' },
@@ -1152,7 +1153,7 @@ describe('httpbis', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
                         id: '123',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                 }).entries())).to.deep.equal([
                     ['keyid', '123'],
@@ -1163,7 +1164,7 @@ describe('httpbis', () => {
             it('handles missing keyid', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                 }).entries())).to.deep.equal([
                     ['created', 1664267652],
@@ -1173,7 +1174,7 @@ describe('httpbis', () => {
             it('returns nothing if no data', () => {
                 expect(Array.from(httpbis.createSigningParameters({
                     key: {
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     paramValues: { created: null },
                 }).entries())).to.deep.equal([]);
@@ -1185,7 +1186,7 @@ describe('httpbis', () => {
                     key: {
                         id: '123',
                         alg: 'rsa',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     params: ['created', 'keyid', 'alg'],
                 }).entries())).to.deep.equal([
@@ -1199,7 +1200,7 @@ describe('httpbis', () => {
                     key: {
                         id: '123',
                         alg: 'rsa',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     params: ['created', 'keyid', 'alg', 'custom'],
                     paramValues: { custom: 'value' },
@@ -1215,7 +1216,7 @@ describe('httpbis', () => {
                     key: {
                         id: '123',
                         alg: 'rsa',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     params: ['created', 'keyid', 'alg', 'custom'],
                     paramValues: { custom: new Date(Date.now() + 1000) },
@@ -1231,7 +1232,7 @@ describe('httpbis', () => {
                     key: {
                         id: '123',
                         alg: 'rsa',
-                        sign: () => Promise.resolve(Buffer.from('')),
+                        sign: () => Promise.resolve(new TextEncoder().encode('')),
                     },
                     params: ['created', 'keyid', 'alg', 'custom'],
                 }).entries())).to.deep.equal([
@@ -1244,7 +1245,7 @@ describe('httpbis', () => {
     });
     describe('.augmentHeaders', () => {
         it('adds a new signature and input header', () => {
-            expect(httpbis.augmentHeaders({}, Buffer.from('a fake signature'), '("@method";req);created=12345')).to.deep.equal({
+            expect(httpbis.augmentHeaders({}, new TextEncoder().encode('a fake signature'), '("@method";req);created=12345')).to.deep.equal({
                 'Signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                 'Signature-Input': 'sig=("@method";req);created=12345',
             });
@@ -1253,7 +1254,7 @@ describe('httpbis', () => {
             expect(httpbis.augmentHeaders({
                 'signature': 'sig1=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                 'signature-input': 'sig1=("@method";req);created=12345',
-            }, Buffer.from('another fake signature'), '("@request-target";req);created=12345')).to.deep.equal({
+            }, new TextEncoder().encode('another fake signature'), '("@request-target";req);created=12345')).to.deep.equal({
                 'signature': 'sig1=:YSBmYWtlIHNpZ25hdHVyZQ==:, sig=:YW5vdGhlciBmYWtlIHNpZ25hdHVyZQ==:',
                 'signature-input': 'sig1=("@method";req);created=12345, sig=("@request-target";req);created=12345',
             });
@@ -1262,7 +1263,7 @@ describe('httpbis', () => {
             expect(httpbis.augmentHeaders({
                 'signature': ['sig=:YSBmYWtlIHNpZ25hdHVyZQ==:', 'sig0=:YSBmYWtlIHNpZ25hdHVyZQ==:'],
                 'signature-input': ['sig=("@method";req);created=12345', 'sig0=("@method";req);created=12345'],
-            }, Buffer.from('another fake signature'), '("@request-target";req);created=12345')).to.deep.equal({
+            }, new TextEncoder().encode('another fake signature'), '("@request-target";req);created=12345')).to.deep.equal({
                 'signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:, sig0=:YSBmYWtlIHNpZ25hdHVyZQ==:, sig1=:YW5vdGhlciBmYWtlIHNpZ25hdHVyZQ==:',
                 'signature-input': 'sig=("@method";req);created=12345, sig0=("@method";req);created=12345, sig1=("@request-target";req);created=12345',
             });
@@ -1271,7 +1272,7 @@ describe('httpbis', () => {
             expect(httpbis.augmentHeaders({
                 'signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                 'signature-input': 'sig=("@method";req);created=12345',
-            }, Buffer.from('another fake signature'), '("@request-target";req);created=12345', 'reqres')).to.deep.equal({
+            }, new TextEncoder().encode('another fake signature'), '("@request-target";req);created=12345', 'reqres')).to.deep.equal({
                 'signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:, reqres=:YW5vdGhlciBmYWtlIHNpZ25hdHVyZQ==:',
                 'signature-input': 'sig=("@method";req);created=12345, reqres=("@request-target";req);created=12345',
             });
@@ -1293,7 +1294,7 @@ describe('httpbis', () => {
             let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
-                    sign: stub().resolves(Buffer.from('a fake signature')),
+                    sign: stub().resolves(new TextEncoder().encode('a fake signature')),
                 };
             });
             it('signs a request', async () => {
@@ -1325,7 +1326,7 @@ describe('httpbis', () => {
                     'Signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                     'Signature-Input': 'sig=("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss"',
                 });
-                expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
+                expect(signer.sign).to.have.been.calledOnceWithExactly(new TextEncoder().encode(
                     '"@method": POST\n' +
                     '"@authority": example.com\n' +
                     '"@path": /foo\n' +
@@ -1356,7 +1357,7 @@ describe('httpbis', () => {
                     'Signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                     'Signature-Input': 'sig=();created=1618884473;keyid="test-key-rsa-pss"',
                 });
-                expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
+                expect(signer.sign).to.have.been.calledOnceWithExactly(new TextEncoder().encode(
                     '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss"'
                 ));
             });
@@ -1373,7 +1374,7 @@ describe('httpbis', () => {
             let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
-                    sign: stub().resolves(Buffer.from('a fake signature')),
+                    sign: stub().resolves(new TextEncoder().encode('a fake signature')),
                 };
             });
             it('signs a response', async () => {
@@ -1393,7 +1394,7 @@ describe('httpbis', () => {
                     'Signature': 'sig=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                     'Signature-Input': 'sig=("@status" "content-length" "content-type");created=1618884479;keyid="test-key-ecc-p256"',
                 });
-                expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
+                expect(signer.sign).to.have.been.calledOnceWithExactly(new TextEncoder().encode(
                     '"@status": 503\n' +
                     '"content-length": 62\n' +
                     '"content-type": application/json\n' +
@@ -1426,7 +1427,7 @@ describe('httpbis', () => {
             let signer: SigningKey;
             beforeEach('stub signer', () => {
                 signer = {
-                    sign: stub().resolves(Buffer.from('a fake signature')),
+                    sign: stub().resolves(new TextEncoder().encode('a fake signature')),
                 };
             });
             it('binds request-response fields', async () => {
@@ -1447,7 +1448,7 @@ describe('httpbis', () => {
                     'Signature': 'reqres=:YSBmYWtlIHNpZ25hdHVyZQ==:',
                     'Signature-Input': 'reqres=("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"',
                 });
-                expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
+                expect(signer.sign).to.have.been.calledOnceWithExactly(new TextEncoder().encode(
                     '"@status": 503\n' +
                     '"content-length": 62\n' +
                     '"content-type": application/json\n' +
@@ -1484,7 +1485,7 @@ describe('httpbis', () => {
                 expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
-                    Buffer.from('"@method": POST\n' +
+                    new TextEncoder().encode('"@method": POST\n' +
                         '"@authority": example.com\n' +
                         '"@path": /foo\n' +
                         '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
@@ -1492,7 +1493,7 @@ describe('httpbis', () => {
                         '"content-type": application/json\n' +
                         '"@signature-params": ("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss"',
                     ),
-                    Buffer.from('HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRalVc/g==', 'base64'),
+                    base64.decode('HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRalVc/g=='),
                     {
                         created: new Date(1618884473 * 1000),
                         keyid: 'test-key-rsa-pss',
@@ -1515,7 +1516,7 @@ describe('httpbis', () => {
                 expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
-                    Buffer.from('"@method": POST\n' +
+                    new TextEncoder().encode('"@method": POST\n' +
                         '"@authority": example.com\n' +
                         '"@path": /foo\n' +
                         '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
@@ -1523,7 +1524,7 @@ describe('httpbis', () => {
                         '"content-type": application/json\n' +
                         '"@signature-params": ("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss";p1=:AAA=:;p2=p1',
                     ),
-                    Buffer.from('HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRalVc/g==', 'base64'),
+                    base64.decode('HIbjHC5rS0BYaa9v4QfD4193TORw7u9edguPh0AW3dMq9WImrlFrCGUDih47vAxi4L2YRZ3XMJc1uOKk/J0ZmZ+wcta4nKIgBkKq0rM9hs3CQyxXGxHLMCy8uqK488o+9jrptQ+xFPHK7a9sRL1IXNaagCNN3ZxJsYapFj+JXbmaI5rtAdSfSvzPuBCh+ARHBmWuNo1UzVVdHXrl8ePL4cccqlazIJdC4QEjrF+Sn4IxBQzTZsL9y9TP5FsZYzHvDqbInkTNigBcE9cKOYNFCn4D/WM7F6TNuZO9EgtzepLWcjTymlHzK7aXq6Am6sfOrpIC49yXjj3ae6HRalVc/g=='),
                     {
                         created: new Date(1618884473 * 1000),
                         keyid: 'test-key-rsa-pss',
@@ -1555,10 +1556,10 @@ describe('httpbis', () => {
                 expect(keyLookup).to.have.callCount(2);
                 expect(verifierStub).to.have.callCount(2);
                 expect(verifierStub).to.have.been.calledWithExactly(
-                    Buffer.from(
+                    new TextEncoder().encode(
                         '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                     ),
-                    Buffer.from('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3 +7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==', 'base64'),
+                    base64.decode('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q=='),
                     {
                         created: new Date(1618884473 * 1000),
                         keyid: 'test-key-rsa-pss',
@@ -1566,12 +1567,12 @@ describe('httpbis', () => {
                     },
                 );
                 expect(verifierStub).to.have.been.calledWithExactly(
-                    Buffer.from('"@authority": example.com\n' +
+                    new TextEncoder().encode('"@authority": example.com\n' +
                         '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
                         '"@query-param";name="Pet": dog\n' +
                         '"@signature-params": ("@authority" "content-digest" "@query-param";name="Pet");alg="rsa-pss-sha512";created=1618884473;keyid="test-key-rsa-pss";tag="header-example"',
                     ),
-                    Buffer.from('LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw==', 'base64'),
+                    base64.decode('LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw=='),
                     {
                         alg: 'rsa-pss-sha512',
                         created: new Date(1618884473 * 1000),
@@ -1619,13 +1620,13 @@ describe('httpbis', () => {
                 expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
-                    Buffer.from('"@status": 200\n' +
+                    new TextEncoder().encode('"@status": 200\n' +
                         '"content-type": application/json\n' +
                         '"content-digest": sha-512=:JlEy2bfUz7WrWIjc1qV6KVLpdr/7L5/L4h7Sxvh6sNHpDQWDCL+GauFQWcZBvVDhiyOnAQsxzZFYwi0wDH+1pw==:\n' +
                         '"content-length": 23\n' +
                         '"@signature-params": ("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"',
                     ),
-                    Buffer.from('wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==', 'base64'),
+                    base64.decode('wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw=='),
                     {
                         created: new Date(1618884473 * 1000),
                         keyid: 'test-key-ecc-p256',
@@ -1667,7 +1668,7 @@ describe('httpbis', () => {
                 expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledOnceWithExactly(
-                    Buffer.from('"@status": 503\n' +
+                    new TextEncoder().encode('"@status": 503\n' +
                         '"content-length": 62\n' +
                         '"content-type": application/json\n' +
                         '"signature";req;key="sig1": :LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:\n' +
@@ -1675,7 +1676,7 @@ describe('httpbis', () => {
                         '"@method";req: POST\n' +
                         '"@signature-params": ("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"',
                     ),
-                    Buffer.from('mh17P4TbYYBmBwsXPT4nsyVzW4Rp9Fb8WcvnfqKCQLoMvzOBLD/n32tL/GPW6XE5GAS5bdsg1khK6lBzV1Cx/Q==', 'base64'),
+                    base64.decode('mh17P4TbYYBmBwsXPT4nsyVzW4Rp9Fb8WcvnfqKCQLoMvzOBLD/n32tL/GPW6XE5GAS5bdsg1khK6lBzV1Cx/Q=='),
                     {
                         keyid: 'test-key-ecc-p256',
                         created: new Date(1618884479 * 1000),
@@ -1763,10 +1764,10 @@ describe('httpbis', () => {
                     expect(keyLookup).to.have.callCount(3);
                     expect(verifierStub).to.have.callCount(2);
                     expect(verifierStub).to.have.been.calledWithExactly(
-                        Buffer.from(
+                        new TextEncoder().encode(
                             '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                         ),
-                        Buffer.from('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3 +7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==', 'base64'),
+                        base64.decode('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q=='),
                         {
                             created: new Date(1618884473 * 1000),
                             keyid: 'test-key-rsa-pss',
@@ -1774,12 +1775,12 @@ describe('httpbis', () => {
                         },
                     );
                     expect(verifierStub).to.have.been.calledWithExactly(
-                        Buffer.from('"@authority": example.com\n' +
+                        new TextEncoder().encode('"@authority": example.com\n' +
                             '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
                             '"@query-param";name="Pet": dog\n' +
                             '"@signature-params": ("@authority" "content-digest" "@query-param";name="Pet");created=1618884473;keyid="test-key-rsa-pss";tag="header-example"',
                         ),
-                        Buffer.from('LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw==', 'base64'),
+                        base64.decode('LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw=='),
                         {
                             created: new Date(1618884473 * 1000),
                             keyid: 'test-key-rsa-pss',
@@ -1816,10 +1817,10 @@ describe('httpbis', () => {
                     expect(keyLookup).to.have.callCount(2);
                     expect(verifierStub).to.have.callCount(2);
                     expect(verifierStub).to.have.been.calledWithExactly(
-                        Buffer.from(
+                        new TextEncoder().encode(
                             '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                         ),
-                        Buffer.from('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3 +7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==', 'base64'),
+                        base64.decode('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q=='),
                         {
                             created: new Date(1618884473 * 1000),
                             keyid: 'test-key-rsa-pss',
@@ -1827,12 +1828,12 @@ describe('httpbis', () => {
                         },
                     );
                     expect(verifierStub).to.have.been.calledWithExactly(
-                        Buffer.from('"@authority": example.com\n' +
+                        new TextEncoder().encode('"@authority": example.com\n' +
                             '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
                             '"@query-param";name="Pet": dog\n' +
                             '"@signature-params": ("@authority" "content-digest" "@query-param";name="Pet");created=1618884473;keyid="test-key-rsa-pss";tag="header-example"',
                         ),
-                        Buffer.from('LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw==', 'base64'),
+                        base64.decode('LjbtqUbfmvjj5C5kr1Ugj4PmLYvx9wVjZvD9GsTT4F7GrcQEdJzgI9qHxICagShLRiLMlAJjtq6N4CDfKtjvuJyE5qH7KT8UCMkSowOB4+ECxCmT8rtAmj/0PIXxi0A0nxKyB09RNrCQibbUjsLS/2YyFYXEu4TRJQzRw1rLEuEfY17SARYhpTlaqwZVtR8NV7+4UKkjqpcAoFqWFQh62s7Cl+H2fjBSpqfZUJcsIk4N6wiKYd4je2U/lankenQ99PZfB4jY3I5rSV2DSBVkSFsURIjYErOs0tFTQosMTAoxk//0RoKUqiYY8Bh0aaUEb0rQl3/XaVe4bXTugEjHSw=='),
                         {
                             created: new Date(1618884473 * 1000),
                             keyid: 'test-key-rsa-pss',
@@ -1869,10 +1870,10 @@ describe('httpbis', () => {
                     expect(keyLookup).to.have.callCount(2);
                     expect(verifierStub).to.have.callCount(1);
                     expect(verifierStub).to.have.been.calledWithExactly(
-                        Buffer.from(
+                        new TextEncoder().encode(
                             '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                         ),
-                        Buffer.from('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3 +7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==', 'base64'),
+                        base64.decode('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q=='),
                         {
                             created: new Date(1618884473 * 1000),
                             keyid: 'test-key-rsa-pss',
@@ -1908,10 +1909,10 @@ describe('httpbis', () => {
                 expect(keyLookup).to.have.callCount(3);
                 expect(verifierStub).to.have.callCount(1);
                 expect(verifierStub).to.have.been.calledWithExactly(
-                    Buffer.from(
+                    new TextEncoder().encode(
                         '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss";nonce="b3k2pp5k7z-50gnwp.yemd"',
                     ),
-                    Buffer.from('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3 +7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q==', 'base64'),
+                    base64.decode('d2pmTvmbncD3xQm8E9ZV2828BjQWGgiwAaw5bAkgibUopemLJcWDy/lkbbHAve4cRAtx31Iq786U7it++wgGxbtRxf8Udx7zFZsckzXaJMkA7ChG52eSkFxykJeNqsrWH5S+oxNFlD4dzVuwe8DhTSja8xxbR/Z2cOGdCbzR72rgFWhzx2VjBqJzsPLMIQKhO4DGezXehhWwE56YCE+O6c0mKZsfxVrogUvA4HELjVKWmAvtl6UnCh8jYzuVG5WSb/QEVPnP5TmcAnLH1g+s++v6d4s8m0gCw1fV5/SITLq9mhho8K3+7EPYTU8IU1bLhdxO5Nyt8C8ssinQ98Xw9Q=='),
                     {
                         created: new Date(1618884473 * 1000),
                         keyid: 'test-key-rsa-pss',

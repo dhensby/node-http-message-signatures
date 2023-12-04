@@ -114,8 +114,8 @@ function makeHttpRequest(request: Request, port?: number): Promise<http.Incoming
     });
 }
 
-function makeHttp2Request(request: Request & { body?: string; }, port?: number): Promise<{ headers: Record<string, string | string[]>; body: Buffer; }> {
-    return new Promise<{ headers: Record<string, string | string[]>; body: Buffer; }>((resolve, reject) => {
+function makeHttp2Request(request: Request & { body?: string; }, port?: number): Promise<{ headers: Record<string, string | string[]>; body: Uint8Array; }> {
+    return new Promise<{ headers: Record<string, string | string[]>; body: Uint8Array; }>((resolve, reject) => {
         const url = typeof request.url === 'string' ? new URL(request.url) : request.url;
         const client = http2.connect(request.url, {
             lookup: (hostname: string, options: LookupOneOptions, callback) => {
@@ -137,7 +137,7 @@ function makeHttp2Request(request: Request & { body?: string; }, port?: number):
         req.on('error', (e) => {
             client.close(() => reject(e));
         });
-        const chunks: Buffer[] = [];
+        const chunks: Uint8Array[] = [];
         req.on('data', (chunk) => chunks.push(chunk));
         req.on('end', () => {
             client.close(() => resolve({

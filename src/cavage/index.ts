@@ -1,3 +1,4 @@
+import { base64 } from "@scure/base";
 import { parseItem } from 'structured-headers';
 import { Algorithm, Request, Response, SignConfig, VerifyConfig, defaultParams, isRequest } from '../types';
 import { quoteString } from '../structured-header';
@@ -173,7 +174,7 @@ export async function signMessage<T extends Request | Response = Request | Respo
     const signatureBase = createSignatureBase(config.fields ?? [], message, signingParameters);
     const base = formatSignatureBase(signatureBase);
     // call sign
-    const signature = await config.key.sign(Buffer.from(base));
+    const signature = await config.key.sign(new TextEncoder().encode(base));
     const headerNames = signatureBase.map(([key]) => key);
     const header = [
         ...Array.from(signingParameters.entries()).map(([name, value]) => {
@@ -189,7 +190,7 @@ export async function signMessage<T extends Request | Response = Request | Respo
             return `${name}="${value.toString()}"`
         }),
         `headers="${headerNames.join(' ')}"`,
-        `signature="${signature.toString('base64')}"`,
+        `signature="${base64.encode(signature)}"`,
     ].join(',');
     return {
         ...message,
@@ -297,5 +298,5 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         });
     }, {});
     const key = await config.keyLookup(params);
-    return key?.verify(Buffer.from(base), Buffer.from(parsedHeader.get('signature'), 'base64'), params) ?? null;
+    return key?.verify(new TextEncoder().encode(base), base64.decode(parsedHeader.get('signature')), params) ?? null;
 }
