@@ -170,11 +170,16 @@ export function createSignatureBase(fields: string[], message: Request | Respons
 
 export async function signMessage<T extends Request | Response = Request | Response>(config: SignConfig, message: T): Promise<T> {
     const signingParameters = createSigningParameters(config);
-    const signatureBase = createSignatureBase(config.fields ?? [], message, signingParameters);
+    // NB: In spec versions 11 & 12 (the last 2), if no set of fields to sign has been provided, the default should be (created)
+    // other versions relied on the Date header - perhaps this should be configurable
+    const signatureBase = createSignatureBase(config.fields ?? ['@created'], message, signingParameters);
     const base = formatSignatureBase(signatureBase);
     // call sign
     const signature = await config.key.sign(Buffer.from(base));
     const headerNames = signatureBase.map(([key]) => key);
+    // there is a somewhat deliberate and intentional deviation from spec here:
+    // If no headers (config.fields) are specified, the spec allows for it to be *inferred*
+    // that the (created) value is used, I don't like that and would rather be explicit
     const header = [
         ...Array.from(signingParameters.entries()).map(([name, value]) => {
             if (name === 'alg') {
@@ -224,7 +229,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     if (!parsedHeader.has('signature')) {
         throw new Error('Missing signature from header');
     }
-    const baseParts = new Map(createSignatureBase((parsedHeader.get('headers') ?? '').split(' ').map((component: string) => {
+    const baseParts = new Map(createSignatureBase((parsedHeader.get('headers') ?? '(created)').split(' ').map((component: string) => {
         return component.toLowerCase().replace(/^\((.*)\)$/, '@$1');
     }), message, parsedHeader));
     const base = formatSignatureBase(Array.from(baseParts.entries()));
