@@ -25,14 +25,20 @@ describe('ecdsa-p384-sha384', () => {
                 const data = Buffer.from('some random data');
                 const sig = await signer.sign(data);
                 expect(signer.alg).to.equal('ecdsa-p384-sha384');
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha384', data, ecdsaKeyPair.publicKey, arg));
+                expect(sig).to.satisfy((arg: Buffer) => verify('sha384', data, {
+                    key: ecdsaKeyPair.publicKey,
+                    dsaEncoding: 'ieee-p1363',
+                }, arg));
             });
         });
         describe('verifying', () => {
             it('verifies a signature', async () => {
                 const verifier = createVerifier(ecdsaKeyPair.publicKey, 'ecdsa-p384-sha384');
                 const data = Buffer.from('some random data');
-                const sig = sign('sha384', data, ecdsaKeyPair.privateKey);
+                const sig = sign('sha384', data, {
+                    key: ecdsaKeyPair.privateKey,
+                    dsaEncoding: 'ieee-p1363',
+                });
                 expect(sig).to.satisfy((arg: Buffer) => verifier(data, arg));
             });
         });

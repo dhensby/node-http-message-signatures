@@ -185,7 +185,7 @@ describe('httpbis', () => {
                 res.setHeader('Content-Digest', 'sha-512=:mEWXIS7MaLRuGgxOBdODa3xqM1XdEvxoYhvlCFJ41QJgJc4GTsPp29l5oGX69wWdXymyU0rjJuahq4l5aGgfLQ==:');
                 res.setHeader('Content-Length', '23');
                 res.setHeader('Signature-Input', 'sig-b24=("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"');
-                res.setHeader('Signature', 'sig-b24=:MEYCIQDXrmWrcxKWLQQm0zlwbFr5/KAlB9oHkfMpNRVCuGVHjQIhAKtljVKRuRoWv5dCKuc+GgP3eqLAq+Eg0d3olyR67BYK:');
+                res.setHeader('Signature', 'sig-b24=:wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==:');
                 res.end('{"message": "good dog"}');
             });
             return server.start();
@@ -335,8 +335,7 @@ describe('httpbis', () => {
             });
         });
         describe('ecdsa-p256-sha256', () => {
-            // There seems to be a problem in node in verifying ecdsa signatures from external sources
-            it.skip('verifies a response', async () => {
+            it('verifies a response', async () => {
                 const response = await makeHttpRequest({
                     method: 'POST',
                     url: 'http://example.com/foo?param=Value&Pet=dog',
@@ -455,7 +454,7 @@ describe('httpbis', () => {
                     'content-digest': 'sha-512=:mEWXIS7MaLRuGgxOBdODa3xqM1XdEvxoYhvlCFJ41QJgJc4GTsPp29l5oGX69wWdXymyU0rjJuahq4l5aGgfLQ==:',
                     'content-length': '23',
                     'signature-input': 'sig-b24=("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"',
-                    'signature': 'sig-b24=:MEYCIQDXrmWrcxKWLQQm0zlwbFr5/KAlB9oHkfMpNRVCuGVHjQIhAKtljVKRuRoWv5dCKuc+GgP3eqLAq+Eg0d3olyR67BYK:',
+                    'signature': 'sig-b24=:wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==:',
                 });
                 stream.end('{"message": "good dog"}');
                 stream.close();
@@ -610,8 +609,7 @@ describe('httpbis', () => {
             });
         });
         describe('ecdsa-p256-sha256', () => {
-            // There seems to be a problem in node in verifying ecdsa signatures from external sources
-            it.skip('verifies a response', async () => {
+            it('verifies a response', async () => {
                 const response = await makeHttp2Request({
                     method: 'POST',
                     url: 'http://example.com/foo?param=Value&Pet=dog',
@@ -634,6 +632,7 @@ describe('httpbis', () => {
                     }
                     return null;
                 });
+                console.log(response.headers);
                 const valid = await httpbis.verifyMessage({
                     keyLookup,
                 }, {

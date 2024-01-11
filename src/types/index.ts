@@ -13,7 +13,7 @@ export type Signer = (data: Buffer) => Promise<Buffer>;
 export type Verifier = (data: Buffer, signature: Buffer, parameters?: SignatureParameters) => Promise<boolean | null>;
 export type VerifierFinder = (parameters: SignatureParameters) => Promise<VerifyingKey | null>;
 
-export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'hmac-sha256' | 'rsa-pss-sha512' | string;
+export type Algorithm = 'rsa-v1_5-sha256' | 'ecdsa-p256-sha256' | 'ecdsa-p384-sha384' | 'ed25519' | 'hmac-sha256' | 'rsa-pss-sha512' | string;
 
 export interface SigningKey {
     /**

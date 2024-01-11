@@ -27,14 +27,20 @@ describe('ecdsa-p256-sha256', () => {
                 const data = Buffer.from('some random data');
                 const sig = await signer.sign(data);
                 expect(signer.alg).to.equal('ecdsa-p256-sha256');
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', data, ecdsaKeyPair.publicKey, arg));
+                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', data, {
+                    key: ecdsaKeyPair.publicKey,
+                    dsaEncoding: 'ieee-p1363',
+                }, arg));
             });
         });
         describe('verifying', () => {
             it('verifies a signature', async () => {
                 const verifier = createVerifier(ecdsaKeyPair.publicKey, 'ecdsa-p256-sha256');
                 const data = Buffer.from('some random data');
-                const sig = sign('sha256', data, ecdsaKeyPair.privateKey);
+                const sig = sign('sha256', data, {
+                    key: ecdsaKeyPair.privateKey,
+                    dsaEncoding: 'ieee-p1363',
+                });
                 expect(sig).to.satisfy((arg: Buffer) => verifier(data, arg));
             });
         });
@@ -52,11 +58,12 @@ describe('ecdsa-p256-sha256', () => {
                 '"@signature-params": ("@status" "content-type" "content-digest" "content-length");created=1618884473;keyid="test-key-ecc-p256"');
             it('successfully signs a payload', async () => {
                 const sig = await (createSigner(ecKeyPem, 'ecdsa-p256-sha256').sign(data));
-                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', data, ecKeyPem, arg));
+                expect(sig).to.satisfy((arg: Buffer) => verify('sha256', data, {
+                    key: ecKeyPem,
+                    dsaEncoding: 'ieee-p1363',
+                }, arg));
             });
-            // seems to be broken in node - Error: error:0D07207B:asn1 encoding routines:ASN1_get_object:header too long
-            // could be to do with https://stackoverflow.com/a/39575576
-            it.skip('successfully verifies a signature', async () => {
+            it('successfully verifies a signature', async () => {
                 const sig = Buffer.from('wNmSUAhwb5LxtOtOpNa6W5xj067m5hFrj0XQ4fvpaCLx0NKocgPquLgyahnzDnDAUy5eCdlYUEkLIj+32oiasw==', 'base64');
                 expect(await (createVerifier(ecKeyPem, 'ecdsa-p256-sha256')(data, sig))).to.equal(true);
             });
