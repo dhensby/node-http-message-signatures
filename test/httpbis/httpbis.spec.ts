@@ -170,9 +170,33 @@ describe('httpbis', () => {
                 ]);
                 expect(httpbis.deriveComponent('@path', new Map(), {
                     ...req,
+                    url: 'https://www.example.com/path%7D?param=value',
+                })).to.deep.equal([
+                    '/path%7D',
+                ]);
+                expect(httpbis.deriveComponent('@path', new Map(), {
+                    ...req,
+                    url: 'https://www.example.com',
+                })).to.deep.equal([
+                    '/',
+                ]);
+                expect(httpbis.deriveComponent('@path', new Map(), {
+                    ...req,
                     url: new URL(req.url as string),
                 })).to.deep.equal([
                     '/path',
+                ]);
+                expect(httpbis.deriveComponent('@path', new Map(), {
+                    ...req,
+                    url: new URL('https://www.example.com/path%7D?param=value'),
+                })).to.deep.equal([
+                    '/path%7D',
+                ]);
+                expect(httpbis.deriveComponent('@path', new Map(), {
+                    ...req,
+                    url: new URL('https://www.example.com'),
+                })).to.deep.equal([
+                    '/',
                 ]);
             });
             it('derives @query', () => {
@@ -198,6 +222,18 @@ describe('httpbis', () => {
                 })).to.deep.equal([
                     '?',
                 ]);
+                expect(httpbis.deriveComponent('@query', new Map(), {
+                    ...req,
+                    url: 'https://www.example.com//path?param=value&foo=bar&baz=bat%2Dman',
+                })).to.deep.equal([
+                    '?param=value&foo=bar&baz=bat%2Dman',
+                ]);
+                expect(httpbis.deriveComponent('@query', new Map(), {
+                    ...req,
+                    url: 'https://www.example.com/path',
+                })).to.deep.equal([
+                    '?',
+                ]);
                 // with URL objects
                 expect(httpbis.deriveComponent('@query', new Map(), {
                     ...req,
@@ -210,6 +246,12 @@ describe('httpbis', () => {
                     url: new URL('https://www.example.com/path?queryString'),
                 })).to.deep.equal([
                     '?queryString',
+                ]);
+                expect(httpbis.deriveComponent('@query', new Map(), {
+                    ...req,
+                    url: new URL('https://www.example.com//path?param=value&foo=bar&baz=bat%2Dman'),
+                })).to.deep.equal([
+                    '?param=value&foo=bar&baz=bat%2Dman',
                 ]);
                 expect(httpbis.deriveComponent('@query', new Map(), {
                     ...req,
@@ -242,6 +284,31 @@ describe('httpbis', () => {
                     'value',
                     'value2',
                 ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'param']]), {
+                    ...req,
+                    url: 'https://example.com/path?param=value%7D&param=value2%7D',
+                })).to.deep.equal([
+                    'value%7D',
+                    'value2%7D',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'var']]), {
+                    ...req,
+                    url: 'https://example.com/parameters?var=this%20is%20a%20big%0Amultiline%20value&bar=with+plus+whitespace&fa%C3%A7ade%22%3A%20=something',
+                })).to.deep.equal([
+                    'this%20is%20a%20big%0Amultiline%20value',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'bar']]), {
+                    ...req,
+                    url: 'https://example.com/parameters?var=this%20is%20a%20big%0Amultiline%20value&bar=with+plus+whitespace&fa%C3%A7ade%22%3A%20=something',
+                })).to.deep.equal([
+                    'with%20plus%20whitespace',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'fa%C3%A7ade%22%3A%20']]), {
+                    ...req,
+                    url: 'https://example.com/parameters?var=this%20is%20a%20big%0Amultiline%20value&bar=with+plus+whitespace&fa%C3%A7ade%22%3A%20=something',
+                })).to.deep.equal([
+                    'something',
+                ]);
                 // with URL objects
                 expect(httpbis.deriveComponent('@query-param', new Map([['name', 'baz']]), {
                     ...req,
@@ -267,6 +334,31 @@ describe('httpbis', () => {
                 })).to.deep.equal([
                     'value',
                     'value2',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'param']]), {
+                    ...req,
+                    url: new URL('https://example.com/path?param=value%7D&param=value2%7D'),
+                })).to.deep.equal([
+                    'value%7D',
+                    'value2%7D',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'var']]), {
+                    ...req,
+                    url: new URL('https://example.com/parameters?var=this%20is%20a%20big%0Amultiline%20value&bar=with+plus+whitespace&fa%C3%A7ade%22%3A%20=something'),
+                })).to.deep.equal([
+                    'this%20is%20a%20big%0Amultiline%20value',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'bar']]), {
+                    ...req,
+                    url: new URL('https://example.com/parameters?var=this%20is%20a%20big%0Amultiline%20value&bar=with+plus+whitespace&fa%C3%A7ade%22%3A%20=something'),
+                })).to.deep.equal([
+                    'with%20plus%20whitespace',
+                ]);
+                expect(httpbis.deriveComponent('@query-param', new Map([['name', 'fa%C3%A7ade%22%3A%20']]), {
+                    ...req,
+                    url: new URL('https://example.com/parameters?var=this%20is%20a%20big%0Amultiline%20value&bar=with+plus+whitespace&fa%C3%A7ade%22%3A%20=something'),
+                })).to.deep.equal([
+                    'something',
                 ]);
             });
             it('derives @status', () => {
