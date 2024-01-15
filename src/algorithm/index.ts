@@ -11,6 +11,7 @@ import {
     VerifyPublicKeyInput,
     sign,
     verify,
+    KeyObject,
 } from 'crypto';
 import { RSA_PKCS1_PADDING, RSA_PKCS1_PSS_PADDING } from 'constants';
 import { SigningKey, Algorithm, Verifier } from '../types';
@@ -50,10 +51,16 @@ export function createSigner(key: BinaryLike | KeyLike | SignKeyObjectInput | Si
             } as SignPrivateKeyInput);
             break;
         case 'ecdsa-p256-sha256':
-            signer.sign = async (data: Buffer) => createSign('sha256').update(data).sign(key as KeyLike);
+            signer.sign = async (data: Buffer) => createSign('sha256').update(data).sign({
+                key: key as KeyObject,
+                dsaEncoding: 'ieee-p1363',
+            }); 
             break;
         case 'ecdsa-p384-sha384':
-            signer.sign = async (data: Buffer) => createSign('sha384').update(data).sign(key as KeyLike);
+            signer.sign = async (data: Buffer) => createSign('sha384').update(data).sign({
+                key: key as KeyObject,
+                dsaEncoding: 'ieee-p1363',
+            });
             break;
         case 'ed25519':
             signer.sign = async (data: Buffer) => sign(null, data, key as KeyLike);
@@ -108,10 +115,16 @@ export function createVerifier(key: BinaryLike | KeyLike | VerifyKeyObjectInput 
             } as VerifyPublicKeyInput, signature);
             break;
         case 'ecdsa-p256-sha256':
-            verifier = async (data: Buffer, signature: Buffer) => createVerify('sha256').update(data).verify(key as KeyLike, signature);
+            verifier = async (data: Buffer, signature: Buffer) => createVerify('sha256').update(data).verify({
+                key: key as KeyObject,
+                dsaEncoding: 'ieee-p1363',
+            }, signature);
             break;
         case 'ecdsa-p384-sha384':
-            verifier = async (data: Buffer, signature: Buffer) => createVerify('sha384').update(data).verify(key as KeyLike, signature);
+            verifier = async (data: Buffer, signature: Buffer) => createVerify('sha384').update(data).verify({
+                key: key as KeyObject,
+                dsaEncoding: 'ieee-p1363',
+            }, signature);
             break;
         case 'ed25519':
             verifier = async (data: Buffer, signature: Buffer) => verify(null, data, key as KeyLike, signature) as unknown as boolean;
