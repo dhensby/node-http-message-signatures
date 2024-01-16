@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.3...v1.0.4) (2024-01-16)
+
+
+### Bug Fixes
+
+* never sign empty set of fields ([fc9ff1f](https://github.com/dhensby/node-http-message-signatures/commit/fc9ff1fccd05b51bc1591afb50fb42728d12645e))
+
 ## [1.0.3](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.2...v1.0.3) (2024-01-16)
 
 
