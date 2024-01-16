@@ -12,7 +12,7 @@
 
 ### Bug Fixes
 
-* use undecoded [@path](https://github.com/path), [@query](https://github.com/query) and [@query-param](https://github.com/query-param) according to the spec ([c086d9f](https://github.com/dhensby/node-http-message-signatures/commit/c086d9f7203bb34b9d33942f6e5f9a90fa1a4d11))
+* use undecoded `@path`, `@query` and `@query-param` according to the spec ([c086d9f](https://github.com/dhensby/node-http-message-signatures/commit/c086d9f7203bb34b9d33942f6e5f9a90fa1a4d11))
 
 ## [1.0.2](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.1...v1.0.2) (2024-01-15)
 
