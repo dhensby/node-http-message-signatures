@@ -93,7 +93,9 @@ export function deriveComponent(component: string, params: Map<string, string | 
                 throw new Error('Cannot derive @scheme on response');
             }
             const { pathname } = typeof context.url === 'string' ? new URL(context.url) : context.url;
-            return [decodeURI(pathname)];
+            // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-2.2.6
+            // empty path means use `/`
+            return [pathname || '/'];
         }
         case '@query': {
             if (!isRequest(context)) {
@@ -102,7 +104,7 @@ export function deriveComponent(component: string, params: Map<string, string | 
             const { search } = typeof context.url === 'string' ? new URL(context.url) : context.url;
             // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-2.2.7
             // absent query params means use `?`
-            return [decodeURI(search) || '?'];
+            return [search || '?'];
         }
         case '@query-param': {
             if (!isRequest(context)) {
@@ -112,11 +114,11 @@ export function deriveComponent(component: string, params: Map<string, string | 
             if (!params.has('name')) {
                 throw new Error('@query-param must have a named parameter');
             }
-            const name = (params.get('name') as BareItem).toString();
+            const name = decodeURIComponent((params.get('name') as BareItem).toString());
             if (!searchParams.has(name)) {
                 throw new Error(`Expected query parameter "${name}" not found`);
             }
-            return searchParams.getAll(name);
+            return searchParams.getAll(name).map((value) => encodeURIComponent(value));
         }
         case '@status': {
             if (isRequest(context)) {
