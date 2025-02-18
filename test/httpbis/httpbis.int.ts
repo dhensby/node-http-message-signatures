@@ -192,7 +192,7 @@ describe('httpbis', () => {
         });
         beforeEach('reset requests', () => server.clear());
         after('stop server', async function stopServer () {
-            this.timeout(5000);
+            this.timeout(10000);
             return server.stop();
         });
         describe('rsa-pss-sha512', () => {
