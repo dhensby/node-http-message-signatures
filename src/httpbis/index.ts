@@ -5,12 +5,11 @@ import {
     serializeItem,
     serializeList,
     Dictionary as DictionaryType,
-    ByteSequence,
     serializeDictionary,
     parseList,
     Parameters,
     isInnerList,
-    isByteSequence,
+    arrayBufferToBase64,
     Token,
 } from 'structured-headers';
 import { Dictionary, parseHeader, quoteString } from '../structured-header';
@@ -176,12 +175,16 @@ export function extractHeader(header: string, params: Map<string, string | numbe
 function normaliseParams(params: Parameters): Map<string, string | number | boolean> {
     const map = new Map<string, string | number | boolean>;
     params.forEach((value, key) => {
-        if (value instanceof ByteSequence) {
-            map.set(key, value.toBase64());
+        if (value instanceof ArrayBuffer) {
+            map.set(key, arrayBufferToBase64(value));
         } else if (value instanceof Token) {
             map.set(key, value.toString());
-        } else {
+        } else if (value instanceof Date) {
+            map.set(key, Math.floor(value.getTime() / 1000));
+        } else if (typeof value === 'number' || typeof value === 'string' || typeof value === 'boolean') {
             map.set(key, value);
+        } else {
+            map.set(key, value.toString());
         }
     });
     return map;
@@ -302,7 +305,7 @@ export function augmentHeaders(headers: Record<string, string | string[]>, signa
         signatureName += count.toString();
     }
     // append our signature and signature-inputs to the headers and return
-    signatureHeader.set(signatureName, [new ByteSequence(signature.toString('base64')), new Map()]);
+    signatureHeader.set(signatureName, [signature.buffer.slice(signature.byteOffset, signature.byteOffset + signature.byteLength), new Map()]);
     inputHeader.set(signatureName, parseList(signatureInput)[0]);
     return {
         ...headers,
@@ -370,9 +373,9 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const requiredFields = config.requiredFields ?? [];
     return Array.from(signatureInputs.entries()).reduce<Promise<boolean | null>>(async (prev, [name, input]) => {
         const signatureParams: SignatureParameters = Array.from(input[1].entries()).reduce((params, [key, value]) => {
-            if (value instanceof ByteSequence) {
+            if (value instanceof ArrayBuffer) {
                 Object.assign(params, {
-                    [key]: value.toBase64(),
+                    [key]: arrayBufferToBase64(value),
                 });
             } else if (value instanceof Token) {
                 Object.assign(params, {
@@ -443,9 +446,9 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         if (!signature) {
             throw new MalformedSignatureError('No corresponding signature for input');
         }
-        if (!isByteSequence(signature[0] as BareItem)) {
+        if (!(signature[0] instanceof ArrayBuffer)) {
             throw new MalformedSignatureError('Malformed signature');
         }
-        return key.verify(Buffer.from(base), Buffer.from((signature[0] as ByteSequence).toBase64(), 'base64'), signatureParams);
+        return key.verify(Buffer.from(base), Buffer.from(signature[0] as ArrayBuffer), signatureParams);
     }, Promise.resolve(null));
 }
