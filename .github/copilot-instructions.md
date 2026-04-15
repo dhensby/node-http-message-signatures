@@ -62,11 +62,13 @@ The library exposes two specification implementations via named exports: `httpbi
   - `ci` — CI/workflow changes. **Does not normally trigger a release.**
   - `style` — Refactoring or stylistic changes with no functional impact. **Does not normally trigger a release.**
   - `test` — Changes only touching test files. **Does not normally trigger a release.**
-  - In practice, use `fix` and `feat` for changes that are intended to produce patch/minor releases. Note that with the current semantic-release defaults, other types may also trigger releases (for example `perf`, `revert`, or any commit marked with `!`).
+  - In practice, only use `fix` and `feat` for changes that are intended to appear in the changelog and trigger a release. All other commit types are "invisible" to the release process.
+  - Note that with the current semantic-release defaults, some other types may also trigger releases (for example `perf`, `revert`, or any commit marked with `!`).
 - **Commits and merges:**
   - Commits should be atomic and ideally deployable in isolation — all tests, linting, and commitlinting should pass on each individual commit.
   - PRs are merged using a **merge commit** (no squash-merge or rebase-merge). Each commit in the PR history is preserved.
   - To keep branches up to date with the base branch, **rebase** onto it rather than merging it in.
+  - When a commit in an open PR needs correcting (e.g. fixing a typo, addressing review feedback), **amend** the original commit (or use interactive rebase) rather than adding a new commit. This keeps the history clean and preserves the correct commit type. If a separate follow-up commit is unavoidable, it must use the same type as the commit it corrects — never `fix`, which would incorrectly trigger a release.
   - All changes must go through a **pull request** — no direct commits to master.
 - **ESLint rules:** 4-space indentation, single quotes, trailing commas on multiline, `prefer-destructuring`, `prefer-template`, `prefer-arrow-callback`, no parameter reassignment.
 - **TypeScript:** Targets Node.js 16 (`@tsconfig/node16`). Source in `src/`, compiled output in `lib/`. Only `lib/` is published to npm.
