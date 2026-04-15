@@ -6,7 +6,8 @@
     "outDir": "lib",
     "rootDir": "./src/",
     "sourceMap": true,
-    "newLine": "lf"
+    "newLine": "lf",
+    "types": ["node", "mocha", "sinon-chai"]
   },
   "exclude": ["test", "lib"]
 }

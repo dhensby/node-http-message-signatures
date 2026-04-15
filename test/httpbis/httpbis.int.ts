@@ -12,7 +12,7 @@ import {
 import { promises as fs } from 'fs';
 import { parse } from 'path';
 import { stub } from 'sinon';
-import { lookup, LookupOneOptions } from 'dns';
+import { lookup, LookupOptions } from 'dns';
 
 interface ServerConfig {
     port: number;
@@ -101,11 +101,11 @@ function makeHttpRequest(request: Request, port?: number): Promise<http.Incoming
     return new Promise<http.IncomingMessage>((resolve, reject) => {
         const url = typeof request.url === 'string' ? new URL(request.url) : request.url;
         const req = http.request({
-            lookup: (hostname: string, options: LookupOneOptions, callback) => {
+            lookup: (hostname: string, options: LookupOptions, callback) => {
                 lookup('localhost', options, callback);
             },
             hostname: url.hostname,
-            port: port ?? url.port ?? 80,
+            port: port ?? (parseInt(url.port, 10) || 80),
             path: `${url.pathname}${url.search}`,
             method: request.method,
             headers: request.headers,
@@ -118,7 +118,7 @@ function makeHttp2Request(request: Request & { body?: string; }, port?: number):
     return new Promise<{ headers: Record<string, string | string[]>; body: Buffer; }>((resolve, reject) => {
         const url = typeof request.url === 'string' ? new URL(request.url) : request.url;
         const client = http2.connect(request.url, {
-            lookup: (hostname: string, options: LookupOneOptions, callback) => {
+            lookup: (hostname: string, options: LookupOptions, callback) => {
                 lookup('localhost', options, callback);
             },
             // host: url.host,
@@ -138,7 +138,7 @@ function makeHttp2Request(request: Request & { body?: string; }, port?: number):
             client.close(() => reject(e));
         });
         const chunks: Buffer[] = [];
-        req.on('data', (chunk) => chunks.push(chunk));
+        req.on('data', (chunk: Buffer) => chunks.push(chunk));
         req.on('end', () => {
             client.close(() => resolve({
                 headers,
