@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.5](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.4...v1.0.5) (2026-04-15)
+
+### Bug Fixes
+
+* migrate to ESLint flat config for ESLint 10 ([6c51a68](https://github.com/dhensby/node-http-message-signatures/commit/6c51a6816b1312380f0a1105ebdd0f3ebf7f96d8))
+
 ## [1.0.4](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.3...v1.0.4) (2024-01-16)
 
 
