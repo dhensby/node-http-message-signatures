@@ -184,7 +184,7 @@ describe('cavage', () => {
                         alg: 'rsa123',
                     },
                     paramValues: { created: null },
-                }, ).entries())).to.deep.equal([
+                } ).entries())).to.deep.equal([
                     ['keyid', '123'],
                     ['alg', 'rsa123'],
                 ]);
@@ -355,7 +355,7 @@ describe('cavage', () => {
                     '(expires): 1402170995\n' +
                     'host: example.org\n' +
                     'digest: SHA-256=X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=\n' +
-                    'content-length: 18'
+                    'content-length: 18',
                 ));
             });
         });
@@ -392,7 +392,7 @@ describe('cavage', () => {
                 });
                 expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
                     'content-length: 62\n' +
-                    'content-type: application/json'
+                    'content-type: application/json',
                 ));
             });
         });
