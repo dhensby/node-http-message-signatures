@@ -1175,7 +1175,7 @@ describe('httpbis', () => {
                         alg: 'rsa123',
                     },
                     paramValues: { created: null },
-                }, ).entries())).to.deep.equal([
+                } ).entries())).to.deep.equal([
                     ['keyid', '123'],
                     ['alg', 'rsa123'],
                 ]);
@@ -1188,7 +1188,7 @@ describe('httpbis', () => {
                         alg: 'rsa123',
                     },
                     paramValues: { created: new Date() },
-                }, ).entries())).to.deep.equal([
+                } ).entries())).to.deep.equal([
                     ['keyid', '123'],
                     ['alg', 'rsa123'],
                     ['created', 1664267652],
@@ -1424,7 +1424,7 @@ describe('httpbis', () => {
                     '"content-digest": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n' +
                     '"content-length": 18\n' +
                     '"content-type": application/json\n' +
-                    '"@signature-params": ("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss"'
+                    '"@signature-params": ("@method" "@authority" "@path" "content-digest" "content-length" "content-type");created=1618884473;keyid="test-key-rsa-pss"',
                 ));
             });
             it('signs a request with no fields', async () => {
@@ -1449,7 +1449,7 @@ describe('httpbis', () => {
                     'Signature-Input': 'sig=();created=1618884473;keyid="test-key-rsa-pss"',
                 });
                 expect(signer.sign).to.have.been.calledOnceWithExactly(Buffer.from(
-                    '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss"'
+                    '"@signature-params": ();created=1618884473;keyid="test-key-rsa-pss"',
                 ));
             });
         });
@@ -1489,7 +1489,7 @@ describe('httpbis', () => {
                     '"@status": 503\n' +
                     '"content-length": 62\n' +
                     '"content-type": application/json\n' +
-                    '"@signature-params": ("@status" "content-length" "content-type");created=1618884479;keyid="test-key-ecc-p256"'
+                    '"@signature-params": ("@status" "content-length" "content-type");created=1618884479;keyid="test-key-ecc-p256"',
                 ));
             });
         });
@@ -1546,7 +1546,7 @@ describe('httpbis', () => {
                     '"signature";req;key="sig1": :LAH8BjcfcOcLojiuOBFWn0P5keD3xAOuJRGziCLuD8r5MW9S0RoXXLzLSRfGY/3SF8kVIkHjE13SEFdTo4Af/fJ/Pu9wheqoLVdwXyY/UkBIS1M8Brc8IODsn5DFIrG0IrburbLi0uCc+E2ZIIb6HbUJ+o+jP58JelMTe0QE3IpWINTEzpxjqDf5/Df+InHCAkQCTuKsamjWXUpyOT1Wkxi7YPVNOjW4MfNuTZ9HdbD2Tr65+BXeTG9ZS/9SWuXAc+BZ8WyPz0QRz//ec3uWXd7bYYODSjRAxHqX+S1ag3LZElYyUKaAIjZ8MGOt4gXEwCSLDv/zqxZeWLj/PDkn6w==:\n' +
                     '"@authority";req: example.com\n' +
                     '"@method";req: POST\n' +
-                    '"@signature-params": ("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"'
+                    '"@signature-params": ("@status" "content-length" "content-type" "signature";req;key="sig1" "@authority";req "@method";req);created=1618884479;keyid="test-key-ecc-p256"',
                 ));
             });
         });
@@ -1771,7 +1771,7 @@ describe('httpbis', () => {
                     {
                         keyid: 'test-key-ecc-p256',
                         created: new Date(1618884479 * 1000),
-                    }
+                    },
                 );
             });
         });
@@ -1801,7 +1801,7 @@ describe('httpbis', () => {
                         ...request,
                         headers,
                     });
-                } catch (e) {
+                } catch {
                     expect(keyLookup).to.have.callCount(0);
                     expect(verifierStub).to.have.callCount(0);
                     return;
@@ -1820,7 +1820,7 @@ describe('httpbis', () => {
                         ...request,
                         headers,
                     });
-                } catch (e) {
+                } catch {
                     expect(keyLookup).to.have.callCount(0);
                     expect(verifierStub).to.have.callCount(0);
                     return;
