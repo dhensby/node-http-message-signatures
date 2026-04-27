@@ -305,7 +305,7 @@ export function augmentHeaders(headers: Record<string, string | string[]>, signa
         signatureName += count.toString();
     }
     // append our signature and signature-inputs to the headers and return
-    signatureHeader.set(signatureName, [signature.buffer.slice(signature.byteOffset, signature.byteOffset + signature.byteLength), new Map()]);
+    signatureHeader.set(signatureName, [signature.buffer.slice(signature.byteOffset, signature.byteOffset + signature.byteLength) as ArrayBuffer, new Map()]);
     inputHeader.set(signatureName, parseList(signatureInput)[0]);
     return {
         ...headers,
