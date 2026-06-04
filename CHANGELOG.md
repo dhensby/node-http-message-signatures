@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.6](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.5...v1.0.6) (2026-06-04)
+
+### Bug Fixes
+
+* inverted cavage expires field check ([3290205](https://github.com/dhensby/node-http-message-signatures/commit/32902052e688cdf241f27e7aa31c41afdedc8ec7))
+
 ## [1.0.5](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.4...v1.0.5) (2026-04-15)
 
 ### Bug Fixes
