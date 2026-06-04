@@ -265,7 +265,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     if (parsedHeader.has('expires')) {
         const expires = parsedHeader.get('expires') as number + tolerance;
         // expired signature
-        if (expires > now) {
+        if (expires < now) {
             return false;
         }
     }
