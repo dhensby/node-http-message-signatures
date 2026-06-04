@@ -43,3 +43,8 @@ updates:
           - "sinon-chai"
           - "@types/sinon-chai"
           - "mockdate"
+  - package-ecosystem: "github-actions" # Keep workflow action versions up to date
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
