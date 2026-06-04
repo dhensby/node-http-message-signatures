@@ -475,5 +475,53 @@ describe('cavage', () => {
                 );
             });
         });
+        describe('expires', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const makeRequest = (expires: number): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: `keyId="test-key-a", algorithm="hs2019", created=1664267652, expires=${expires}, headers="(created) (expires)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
+                },
+            });
+            it('rejects an expired signature', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // expires one second before now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest(1664267651));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('accepts a signature that has not yet expired', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // expires one second after now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest(1664267653));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+            it('honours tolerance when checking expiry', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // expired two seconds ago, but a five second tolerance keeps it valid
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    tolerance: 5,
+                }, makeRequest(1664267650));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+        });
     });
 });
