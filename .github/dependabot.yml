@@ -43,6 +43,13 @@ updates:
           - "sinon-chai"
           - "@types/sinon-chai"
           - "mockdate"
+    ignore:
+      # TypeScript 7 (native compiler) is not yet supported by
+      # @typescript-eslint, which peers typescript ">=4.8.4 <6.1.0". Bumping the
+      # major makes `npm ci` fail with ERESOLVE, breaking the lint jobs. Hold the
+      # major until the lint toolchain supports TypeScript 7.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions" # Keep workflow action versions up to date
     directory: "/"
     schedule:
