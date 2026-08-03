@@ -50,6 +50,13 @@ updates:
       # major until the lint toolchain supports TypeScript 7.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # @types/node is deliberately pinned to the oldest Node.js version this
+      # package supports (see the 16.x entry in the CI test matrix, and
+      # @tsconfig/node16). Taking a major would type-check the source against a
+      # newer runtime's APIs while CI still claims Node 16 support, so the major
+      # is only moved when the support floor is raised.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions" # Keep workflow action versions up to date
     directory: "/"
     schedule:
