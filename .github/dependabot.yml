@@ -57,6 +57,15 @@ updates:
       # is only moved when the support floor is raised.
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # Mocha 12 declares engines "^20.19.0 || >=22.12.0" and uses import
+      # attributes, so it cannot run on Node 16 or 18 — both of which are still
+      # in the CI test matrix (see also @tsconfig/node16, and the @types/node
+      # rule above, which holds the same floor). Taking the major would fail
+      # those legs, and silently dropping them would leave the package claiming
+      # support for runtimes it never tests. Move this when the support floor is
+      # deliberately raised, not as a routine dependency bump.
+      - dependency-name: "mocha"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "github-actions" # Keep workflow action versions up to date
     directory: "/"
     schedule:
