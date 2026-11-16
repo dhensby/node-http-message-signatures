@@ -2305,6 +2305,11 @@ describe('httpbis', () => {
             });
             const validB = keyLookupFor('B');
             const validNone = keyLookupFor(null);
+            const now = 1700000000;
+            before('mock time', () => {
+                MockDate.set(new Date(now * 1000));
+            });
+            after('reset time', () => MockDate.reset());
 
             it('rejects an invalid signature followed by a valid one when all is true', async () => {
                 const result = await httpbis.verifyMessage({
@@ -2340,7 +2345,7 @@ describe('httpbis', () => {
                 expect(result).to.equal(true);
             });
             it('accepts a valid signature followed by an expired one by default', async () => {
-                const expired = Math.floor(Date.now() / 1000) - 3600;
+                const expired = now - 3600;
                 const result = await httpbis.verifyMessage({
                     keyLookup: validB,
                 }, {
@@ -2354,7 +2359,7 @@ describe('httpbis', () => {
                 expect(result).to.equal(true);
             });
             it('throws for a valid signature followed by an expired one when all is true', async () => {
-                const expired = Math.floor(Date.now() / 1000) - 3600;
+                const expired = now - 3600;
                 try {
                     await httpbis.verifyMessage({
                         keyLookup: validB,
