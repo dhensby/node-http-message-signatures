@@ -475,6 +475,95 @@ describe('cavage', () => {
                 );
             });
         });
+        describe('required params and fields', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const request: Request = {
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    'Host': 'example.com',
+                    'Content-Type': 'application/json',
+                    'Content-Digest': 'sha-256=:X48E9qOokqqrvdts8nOJRJN3OWDUoyWxBf7kbu9DBPE=:',
+                    'Signature': 'keyId="test-key-a", algorithm="hs2019", created=1664267652, headers="(request-target) (created) content-digest", signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
+                },
+            };
+            describe('requiredParams', () => {
+                it('accepts a signature that has the required params', async () => {
+                    const verifierStub = stub().resolves(true);
+                    const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                    const valid = await cavage.verifyMessage({
+                        keyLookup,
+                        requiredParams: ['keyid', 'alg', 'created'],
+                    }, request);
+                    expect(valid).to.equal(true);
+                    expect(verifierStub).to.have.callCount(1);
+                });
+                it('rejects a signature that is missing a required param', async () => {
+                    const verifierStub = stub().resolves(true);
+                    const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                    const valid = await cavage.verifyMessage({
+                        keyLookup,
+                        requiredParams: ['created', 'expires'],
+                    }, request);
+                    expect(valid).to.equal(false);
+                    expect(keyLookup).to.have.callCount(0);
+                    expect(verifierStub).to.have.callCount(0);
+                });
+                // the created and expires checks only read lower case names, so other cases must not satisfy the requirement
+                [
+                    { param: 'expires', signatureParam: 'Expires=1664267651' },
+                    { param: 'created', signatureParam: 'Created=1664267653' },
+                ].forEach(({ param, signatureParam }) => {
+                    it(`rejects a signature where the required ${param} param has a different case`, async () => {
+                        const verifierStub = stub().resolves(true);
+                        const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                        const valid = await cavage.verifyMessage({
+                            keyLookup,
+                            requiredParams: [param],
+                        }, {
+                            ...request,
+                            headers: {
+                                ...request.headers,
+                                Signature: `keyId="test-key-a", algorithm="hs2019", ${signatureParam}, headers="host", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
+                            },
+                        });
+                        expect(valid).to.equal(false);
+                        expect(keyLookup).to.have.callCount(0);
+                        expect(verifierStub).to.have.callCount(0);
+                    });
+                });
+            });
+            describe('requiredFields', () => {
+                it('accepts a signature that has the required fields', async () => {
+                    const verifierStub = stub().resolves(true);
+                    const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                    const valid = await cavage.verifyMessage({
+                        keyLookup,
+                        requiredFields: ['@request-target', '@created', 'Content-Digest'],
+                    }, request);
+                    expect(valid).to.equal(true);
+                    expect(verifierStub).to.have.callCount(1);
+                });
+                it('rejects a signature that is missing a required field', async () => {
+                    const verifierStub = stub().resolves(true);
+                    const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                    // content-type is in the message, but it is not signed
+                    const valid = await cavage.verifyMessage({
+                        keyLookup,
+                        requiredFields: ['content-digest', 'content-type'],
+                    }, request);
+                    expect(valid).to.equal(false);
+                    expect(keyLookup).to.have.callCount(0);
+                    expect(verifierStub).to.have.callCount(0);
+                });
+            });
+        });
         describe('expires', () => {
             // now === 1664267652
             beforeEach(() => {
