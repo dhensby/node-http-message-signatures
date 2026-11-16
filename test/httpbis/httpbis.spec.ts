@@ -12,7 +12,7 @@ import {
 import { expect } from 'chai';
 import { describe } from 'mocha';
 import * as MockDate from 'mockdate';
-import { stub } from 'sinon';
+import { match, stub } from 'sinon';
 
 describe('httpbis', () => {
     // test the spec as per https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-2.2
@@ -2210,6 +2210,26 @@ describe('httpbis', () => {
                     return;
                 }
                 expect.fail('Expected to throw');
+            });
+            it('passes created and expires params as dates', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-rsa-pss' ? { verify: verifierStub } : null);
+                const result = await httpbis.verifyMessage({
+                    keyLookup,
+                    tolerance: 5,
+                }, request);
+                expect(result).to.equal(true);
+                const expectedParams = {
+                    created: new Date(1618884473 * 1000),
+                    expires: new Date(1618884773 * 1000),
+                    keyid: 'test-key-rsa-pss',
+                };
+                expect(keyLookup).to.have.been.calledOnceWithExactly(expectedParams);
+                expect(verifierStub).to.have.been.calledOnceWithExactly(
+                    match.instanceOf(Buffer),
+                    match.instanceOf(Buffer),
+                    expectedParams,
+                );
             });
             it('enforces maxAge of signature', async () => {
                 const verifierStub = stub().resolves(true);
