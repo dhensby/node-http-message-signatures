@@ -381,7 +381,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
                 Object.assign(params, {
                     [key]: value.toString(),
                 });
-            } else if (key === 'created' || key === 'expired') {
+            } else if (key === 'created' || key === 'expires') {
                 Object.assign(params, {
                     [key]: new Date((value as number) * 1000),
                 });
