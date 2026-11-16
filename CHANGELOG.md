@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.8](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.7...v1.0.8) (2026-11-16)
+
+### Bug Fixes
+
+* **httpbis:** pass expires to key lookup and verifier as a Date ([63ddc9d](https://github.com/dhensby/node-http-message-signatures/commit/63ddc9d9a80e6ac36f463a22a9ea5b0a105f6f3f))
+
 ## [1.0.7](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.6...v1.0.7) (2026-11-16)
 
 ### Bug Fixes

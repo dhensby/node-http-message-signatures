@@ -1,6 +1,6 @@
 {
   "name": "http-message-signatures",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "HTTP message signature implementation",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
