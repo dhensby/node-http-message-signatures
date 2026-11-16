@@ -170,6 +170,12 @@ export interface VerifyConfig extends CommonConfig {
     /**
      * Verify every signature in the request. By default, only 1 signature will need to be valid
      * for the verification to pass.
+     *
+     * If verification does not pass, the order of the signatures does not change the outcome:
+     * `verifyMessage()` throws the error of the first unacceptable signature (with `all`, an
+     * unknown key is an error); if there is none, it returns `false` when a signature failed to
+     * verify; otherwise it returns `null`, because no result could be determined (for example, the
+     * key is unknown or the verifier returned `null`).
      * Default: false
      */
     all?: boolean;

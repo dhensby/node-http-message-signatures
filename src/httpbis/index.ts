@@ -22,7 +22,6 @@ import {
     defaultParams,
     isRequest,
     CommonConfig,
-    VerifyingKey,
 } from '../types';
 import {
     ExpiredError,
@@ -371,7 +370,10 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const maxAge = config.maxAge ?? null;
     const requiredParams = config.requiredParams ?? [];
     const requiredFields = config.requiredFields ?? [];
-    return Array.from(signatureInputs.entries()).reduce<Promise<boolean | null>>(async (prev, [name, input]) => {
+    // check each signature on its own: a signature resolves to `true` or `false` once it has been
+    // verified, resolves to `null` if it can't be checked (an unknown key, or an indeterminate
+    // result from the verifier), or rejects if it isn't acceptable
+    const outcomes = await Promise.allSettled(Array.from(signatureInputs.entries()).map(async ([name, input]): Promise<boolean | null> => {
         const signatureParams: SignatureParameters = Array.from(input[1].entries()).reduce((params, [key, value]) => {
             if (value instanceof ArrayBuffer) {
                 Object.assign(params, {
@@ -392,84 +394,70 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
             }
             return params;
         }, {});
-        const [result, key]: [Error | boolean | null, VerifyingKey | null] = await Promise.all([
-            prev.catch((e) => e),
-            config.keyLookup(signatureParams),
-        ]);
+        const key = await config.keyLookup(signatureParams);
         // @todo - confirm this is all working as expected
         if (config.all && !key) {
             throw new UnknownKeyError('Unknown key');
         }
         if (!key) {
-            if (result instanceof Error) {
-                throw result;
-            }
-            return result;
+            return null;
         }
-        let valid: boolean | null;
-        try {
-            if (input[1].has('alg') && key.algs?.includes(input[1].get('alg') as string) === false) {
-                throw new UnsupportedAlgorithmError('Unsupported key algorithm');
+        if (input[1].has('alg') && key.algs?.includes(input[1].get('alg') as string) === false) {
+            throw new UnsupportedAlgorithmError('Unsupported key algorithm');
+        }
+        if (!isInnerList(input)) {
+            throw new MalformedSignatureError('Malformed signature input');
+        }
+        const hasRequiredParams = requiredParams.every((param) => input[1].has(param));
+        if (!hasRequiredParams) {
+            throw new UnacceptableSignatureError('Missing required signature parameters');
+        }
+        // this could be tricky, what if we say "@method" but there is "@method;req"
+        const hasRequiredFields = requiredFields.every((field) => input[0].some(([fieldName]) => fieldName === field));
+        if (!hasRequiredFields) {
+            throw new UnacceptableSignatureError('Missing required signed fields');
+        }
+        if (input[1].has('created')) {
+            const created = input[1].get('created') as number - tolerance;
+            // maxAge overrides expires.
+            // signature is older than maxAge
+            if ((maxAge && now - created > maxAge) || created > notAfter) {
+                throw new ExpiredError('Signature is too old');
             }
-            if (!isInnerList(input)) {
-                throw new MalformedSignatureError('Malformed signature input');
+        }
+        if (input[1].has('expires')) {
+            const expires = input[1].get('expires') as number + tolerance;
+            // expired signature
+            if (now > expires) {
+                throw new ExpiredError('Signature has expired');
             }
-            const hasRequiredParams = requiredParams.every((param) => input[1].has(param));
-            if (!hasRequiredParams) {
-                throw new UnacceptableSignatureError('Missing required signature parameters');
-            }
-            // this could be tricky, what if we say "@method" but there is "@method;req"
-            const hasRequiredFields = requiredFields.every((field) => input[0].some(([fieldName]) => fieldName === field));
-            if (!hasRequiredFields) {
-                throw new UnacceptableSignatureError('Missing required signed fields');
-            }
-            if (input[1].has('created')) {
-                const created = input[1].get('created') as number - tolerance;
-                // maxAge overrides expires.
-                // signature is older than maxAge
-                if ((maxAge && now - created > maxAge) || created > notAfter) {
-                    throw new ExpiredError('Signature is too old');
-                }
-            }
-            if (input[1].has('expires')) {
-                const expires = input[1].get('expires') as number + tolerance;
-                // expired signature
-                if (now > expires) {
-                    throw new ExpiredError('Signature has expired');
-                }
-            }
+        }
 
-            // now look to verify the signature! Build the expected "signing base" and verify it!
-            const fields = input[0].map((item) => serializeItem(item));
-            const signingBase = createSignatureBase({ fields, componentParser: config.componentParser }, message as Response, req);
-            signingBase.push(['"@signature-params"', [serializeList([input])]]);
-            const base = formatSignatureBase(signingBase);
-            const signature = signatures.get(name);
-            if (!signature) {
-                throw new MalformedSignatureError('No corresponding signature for input');
-            }
-            if (!(signature[0] instanceof ArrayBuffer)) {
-                throw new MalformedSignatureError('Malformed signature');
-            }
-            valid = await key.verify(Buffer.from(base), Buffer.from(signature[0] as ArrayBuffer), signatureParams);
-        } catch (e) {
-            // with `all: false` one valid signature is enough, so an error raised by a
-            // later signature does not undo a signature that already verified
-            if (!config.all && result === true) {
-                return true;
-            }
-            throw e;
+        // now look to verify the signature! Build the expected "signing base" and verify it!
+        const fields = input[0].map((item) => serializeItem(item));
+        const signingBase = createSignatureBase({ fields, componentParser: config.componentParser }, message as Response, req);
+        signingBase.push(['"@signature-params"', [serializeList([input])]]);
+        const base = formatSignatureBase(signingBase);
+        const signature = signatures.get(name);
+        if (!signature) {
+            throw new MalformedSignatureError('No corresponding signature for input');
         }
-        if (config.all) {
-            // every signature must verify: keep an earlier error or failure
-            if (result instanceof Error) {
-                throw result;
-            }
-            if (result === false) {
-                return false;
-            }
-            return valid;
+        if (!(signature[0] instanceof ArrayBuffer)) {
+            throw new MalformedSignatureError('Malformed signature');
         }
-        return result === true ? true : valid;
-    }, Promise.resolve(null));
+        return key.verify(Buffer.from(base), Buffer.from(signature[0] as ArrayBuffer), signatureParams);
+    }));
+    const results = outcomes.flatMap((outcome) => outcome.status === 'fulfilled' ? [outcome.value] : []);
+    const verified = results.filter((result) => result === true).length;
+    // with `all`, every signature must verify; otherwise one valid signature is enough
+    if (config.all ? verified === outcomes.length : verified > 0) {
+        return true;
+    }
+    // the order of the signatures does not change the outcome: an error (the first in the header)
+    // comes before a signature that failed to verify, which comes before an indeterminate result
+    const rejected = outcomes.find((outcome): outcome is PromiseRejectedResult => outcome.status === 'rejected');
+    if (rejected) {
+        throw rejected.reason;
+    }
+    return results.includes(false) ? false : null;
 }

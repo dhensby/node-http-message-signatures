@@ -173,7 +173,7 @@ const { httpbis: { verifyMessage }, createVerifier } = require('http-message-sig
         async keyLookup(params) {
             const keyId = params.keyid;
             // lookup and return key - note, we could also lookup using the alg too (`params.alg`)
-            // if there is no key, `verifyMessage()` will throw an error
+            // if there is no key, the signature can't be verified (with `all: true`, `verifyMessage()` throws an error)
             return keys.get(keyId);
         },
     }, {
@@ -190,6 +190,15 @@ const { httpbis: { verifyMessage }, createVerifier } = require('http-message-sig
     console.log(verified);
 })().catch(console.error);
 ```
+
+`verifyMessage()` resolves to `true` if the signatures are valid and `false` if they are not. It resolves to `null` if
+the result can't be determined, for example when the message has no signatures or no key is found. It throws an error
+if a signature is not acceptable, for example because it has expired or is malformed.
+
+If a message has more than one signature, one valid signature is enough by default. Set `all: true` to require every
+signature to be valid. If verification does not pass, the order of the signatures does not change the result: the error
+of the first unacceptable signature is thrown, otherwise `false` is returned if a signature failed to verify, otherwise
+`null` is returned.
 
 ### Verifying a response with request components
 
@@ -215,7 +224,7 @@ const { httpbis: { verifyMessage }, createVerifier } = require('http-message-sig
         async keyLookup(params) {
             const keyId = params.keyid;
             // lookup and return key - note, we could also lookup using the alg too (`params.alg`)
-            // if there is no key, `verifyMessage()` will throw an error
+            // if there is no key, the signature can't be verified (with `all: true`, `verifyMessage()` throws an error)
             return keys.get(keyId);
         },
     }, {
@@ -277,7 +286,7 @@ const { httpbis: { verifyMessage } } = require('http-message-signatures');
         async keyLookup(params) {
             const keyId = params.keyid;
             // lookup and return key - note, we could also lookup using the alg too (`params.alg`)
-            // if there is no key, `verifyMessage()` will throw an error
+            // if there is no key, the signature can't be verified (with `all: true`, `verifyMessage()` throws an error)
             return keys.get(keyId);
         },
     }, {
