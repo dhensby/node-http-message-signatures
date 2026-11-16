@@ -205,6 +205,20 @@ export async function signMessage<T extends Request | Response = Request | Respo
     };
 }
 
+/**
+ * Get the time (in seconds) that the signature was created, using only values that the signature
+ * signs: the `created` parameter if `(created)` is signed, otherwise the `date` header if it is signed.
+ * Returns null if the signature signs neither, or if the `date` header is not a valid date.
+ */
+function getSignedCreationTime(parsedHeader: Map<string, string | number>, baseParts: Map<string, string[]>): number | null {
+    if (baseParts.has('(created)')) {
+        return parsedHeader.get('created') as number;
+    }
+    const [date] = baseParts.get('date') ?? [];
+    const time = date ? Date.parse(date) : NaN;
+    return Number.isNaN(time) ? null : Math.floor(time / 1000);
+}
+
 export async function verifyMessage(config: VerifyConfig, message: Request | Response): Promise<boolean | null> {
     const header = Object.entries(message.headers).find(([name]) => name.toLowerCase() === 'signature');
     if (!header) {
@@ -250,13 +264,17 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     if (!hasRequiredFields) {
         return false;
     }
-    if (parsedHeader.has('created')) {
-        const created = parsedHeader.get('created') as number;
-        // maxAge overrides expires.
+    // maxAge overrides expires.
+    // maxAge is best effort: it is checked only if the signature signs `(created)` or the `date` header
+    if (maxAge) {
+        const signedAt = getSignedCreationTime(parsedHeader, baseParts);
         // signature is older than maxAge (allowing for clock tolerance)
-        if (maxAge && now - created > maxAge + tolerance) {
+        if (signedAt !== null && now - signedAt > maxAge + tolerance) {
             return false;
         }
+    }
+    if (parsedHeader.has('created')) {
+        const created = parsedHeader.get('created') as number;
         // created after the allowed time (ie: created in the future, allowing for clock tolerance)
         if (created - tolerance > notAfter) {
             return false;

@@ -150,6 +150,10 @@ export interface VerifyConfig extends CommonConfig {
      * The maximum age of the signature - this effectively overrides the `expires` value for the
      * signature (unless the expires age is less than the maxAge specified)
      * if provided
+     *
+     * With `cavage.verifyMessage()`, this check is best effort. It uses the `created` parameter if
+     * the signature signs `(created)`, otherwise the `Date` header if the signature signs `date`.
+     * If the signature signs neither, or the `Date` header is not a valid date, the age is not checked.
      */
     maxAge?: number;
     /**

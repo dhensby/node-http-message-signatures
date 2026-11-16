@@ -539,6 +539,69 @@ describe('cavage', () => {
                     Signature: `keyId="test-key-a", algorithm="hs2019", created=${created}, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
                 },
             });
+            const makeRequestWithDate = (signature: string, date: string): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Date: date,
+                    Signature: signature,
+                },
+            });
+            it('rejects a signature whose signed date header is older than maxAge', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // date is 301 seconds before now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequestWithDate('keyId="test-key-a", algorithm="rsa-sha256", headers="host date", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'Tue, 27 Sep 2022 08:29:11 GMT'));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('accepts a signature whose signed date header is within maxAge', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // date is 299 seconds before now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequestWithDate('keyId="test-key-a", algorithm="rsa-sha256", headers="host date", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'Tue, 27 Sep 2022 08:29:13 GMT'));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+            it('uses the signed created time before the signed date header', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created is 301 seconds before now, date is now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequestWithDate('keyId="test-key-a", algorithm="hs2019", created=1664267351, headers="(created) date", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'Tue, 27 Sep 2022 08:34:12 GMT'));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('does not check the age if the signature signs neither the created time nor the date header', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created and date are 1000 seconds before now, but neither is signed so they are not used
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequestWithDate('keyId="test-key-a", algorithm="hs2019", created=1664266652, headers="host", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'Tue, 27 Sep 2022 08:17:32 GMT'));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+            it('does not check the age if the signed date header is not a valid date', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequestWithDate('keyId="test-key-a", algorithm="rsa-sha256", headers="host date", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'not a date'));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
             it('rejects a signature older than maxAge', async () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
