@@ -2245,6 +2245,34 @@ describe('httpbis', () => {
                 }
                 expect.fail('Expected to throw');
             });
+            it('allows signatures older than maxAge within tolerance', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-rsa-pss' ? { verify: verifierStub } : null);
+                // the signature is 305 seconds old
+                const result = await httpbis.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                    tolerance: 5,
+                }, request);
+                expect(result).to.equal(true);
+            });
+            it('throws if signature is older than maxAge plus tolerance', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-rsa-pss' ? { verify: verifierStub } : null);
+                // the signature is 305 seconds old
+                try {
+                    await httpbis.verifyMessage({
+                        keyLookup,
+                        maxAge: 299,
+                        tolerance: 5,
+                    }, request);
+                } catch (e) {
+                    expect(e).to.be.instanceOf(ExpiredError);
+                    expect(e).to.have.property('message', 'Signature is too old');
+                    return;
+                }
+                expect.fail('Expected to throw');
+            });
             it('throws if signature is created too early', async () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-rsa-pss' ? { verify: verifierStub } : null);

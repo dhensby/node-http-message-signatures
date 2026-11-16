@@ -418,10 +418,10 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
             throw new UnacceptableSignatureError('Missing required signed fields');
         }
         if (input[1].has('created')) {
-            const created = input[1].get('created') as number - tolerance;
+            const created = input[1].get('created') as number;
             // maxAge overrides expires.
-            // signature is older than maxAge
-            if ((maxAge && now - created > maxAge) || created > notAfter) {
+            // signature is older than maxAge, or created after notAfter (allowing for clock tolerance)
+            if ((maxAge && now - created > maxAge + tolerance) || created - tolerance > notAfter) {
                 throw new ExpiredError('Signature is too old');
             }
         }
