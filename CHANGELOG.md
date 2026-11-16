@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.7](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.6...v1.0.7) (2026-11-16)
+
+### Bug Fixes
+
+* **httpbis:** combine results across signatures in verifyMessage ([8674794](https://github.com/dhensby/node-http-message-signatures/commit/86747942377f99cfe0c6d92c8b13b359d5287612))
+* **httpbis:** make verifyMessage outcomes independent of signature order ([06d9ab4](https://github.com/dhensby/node-http-message-signatures/commit/06d9ab42e5d8ed23c32969c4e6602fb7b1819559))
+
 ## [1.0.6](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.5...v1.0.6) (2026-06-04)
 
 ### Bug Fixes
