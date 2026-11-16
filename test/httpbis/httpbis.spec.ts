@@ -12,7 +12,7 @@ import {
 import { expect } from 'chai';
 import { describe } from 'mocha';
 import * as MockDate from 'mockdate';
-import { match, stub } from 'sinon';
+import { match, SinonStub, stub } from 'sinon';
 
 describe('httpbis', () => {
     // test the spec as per https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-message-signatures#section-2.2
@@ -2326,6 +2326,77 @@ describe('httpbis', () => {
                     },
                 });
                 expect(result).to.equal(true);
+            });
+            describe('maxAge with the date header', () => {
+                // now is 1618884778 (Tue, 20 Apr 2021 02:12:58 GMT)
+                const coversDate = 'sig1=("@method" "@authority" "@path" "date");keyid="test-key-rsa-pss"';
+                const requestWith = (signatureInput: string, date?: string): Request => ({
+                    ...request,
+                    headers: {
+                        ...Object.fromEntries(Object.entries(request.headers).filter(([name]) => name !== 'Date')),
+                        ...(date ? { Date: date } : {}),
+                        'Signature-Input': signatureInput,
+                    },
+                });
+                let verifierStub: SinonStub;
+                let keyLookup: SinonStub;
+                beforeEach('stub key lookup', () => {
+                    verifierStub = stub().resolves(true);
+                    keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-rsa-pss' ? { verify: verifierStub } : null);
+                });
+                it('throws if signature has no created param and the covered date header is older than maxAge', async () => {
+                    try {
+                        // the date is 301 seconds before now
+                        await httpbis.verifyMessage({
+                            keyLookup,
+                            maxAge: 300,
+                        }, requestWith(coversDate, 'Tue, 20 Apr 2021 02:07:57 GMT'));
+                    } catch (e) {
+                        expect(e).to.be.instanceOf(ExpiredError);
+                        expect(e).to.have.property('message', 'Signature is too old');
+                        expect(verifierStub.called).to.equal(false);
+                        return;
+                    }
+                    expect.fail('Expected to throw');
+                });
+                it('validates signatures with no created param and a covered date header within maxAge', async () => {
+                    // the date is 299 seconds before now
+                    const result = await httpbis.verifyMessage({
+                        keyLookup,
+                        maxAge: 300,
+                    }, requestWith(coversDate, 'Tue, 20 Apr 2021 02:07:59 GMT'));
+                    expect(result).to.equal(true);
+                });
+                it('uses the created param before the covered date header', async () => {
+                    // created is 299 seconds before now, the date is 303 seconds before now
+                    const result = await httpbis.verifyMessage({
+                        keyLookup,
+                        maxAge: 300,
+                    }, requestWith('sig1=("@method" "@authority" "@path" "date");created=1618884479;keyid="test-key-rsa-pss"', 'Tue, 20 Apr 2021 02:07:55 GMT'));
+                    expect(result).to.equal(true);
+                });
+                it('does not check the age of signatures with no created param and no date header', async () => {
+                    const result = await httpbis.verifyMessage({
+                        keyLookup,
+                        maxAge: 300,
+                    }, requestWith('sig1=("@method" "@authority" "@path");keyid="test-key-rsa-pss"'));
+                    expect(result).to.equal(true);
+                });
+                it('does not use a date header that the signature does not cover', async () => {
+                    // the date is 303 seconds before now
+                    const result = await httpbis.verifyMessage({
+                        keyLookup,
+                        maxAge: 300,
+                    }, requestWith('sig1=("@method" "@authority" "@path");keyid="test-key-rsa-pss"', 'Tue, 20 Apr 2021 02:07:55 GMT'));
+                    expect(result).to.equal(true);
+                });
+                it('does not check the age if the covered date header is not a valid date', async () => {
+                    const result = await httpbis.verifyMessage({
+                        keyLookup,
+                        maxAge: 300,
+                    }, requestWith(coversDate, 'not a date'));
+                    expect(result).to.equal(true);
+                });
             });
         });
         describe('multiple signatures', () => {

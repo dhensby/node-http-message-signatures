@@ -154,6 +154,10 @@ export interface VerifyConfig extends CommonConfig {
      * With `cavage.verifyMessage()`, this check is best effort. It uses the `created` parameter if
      * the signature signs `(created)`, otherwise the `Date` header if the signature signs `date`.
      * If the signature signs neither, or the `Date` header is not a valid date, the age is not checked.
+     *
+     * With `httpbis.verifyMessage()`, this check is best effort. It uses the `created` parameter if
+     * the signature has one, otherwise the `Date` header if the signature covers `date`.
+     * If the signature has neither, or the `Date` header is not a valid date, the age is not checked.
      */
     maxAge?: number;
     /**
