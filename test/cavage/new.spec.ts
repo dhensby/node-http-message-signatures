@@ -439,6 +439,95 @@ describe('cavage', () => {
                 );
             });
         });
+        describe('key algorithms', () => {
+            const makeRequest = (algorithm?: string | string[]): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: [
+                        'keyId="test-key-a"',
+                        ...([] as string[]).concat(algorithm ?? []),
+                        'created=1402170695',
+                        'headers="(created)"',
+                        'signature="YSBmYWtlIHNpZ25hdHVyZQ=="',
+                    ].join(', '),
+                },
+            });
+            it('verifies an algorithm that the key allows', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['rsa-v1_5-sha256'] } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest('algorithm="rsa-sha256"'));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+                expect(verifierStub.firstCall.args[2]).to.have.property('alg', 'rsa-v1_5-sha256');
+            });
+            it('rejects an algorithm that the key does not allow', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['rsa-v1_5-sha256'] } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest('algorithm="hmac-sha256"'));
+                expect(valid).to.equal(false);
+                expect(keyLookup).to.have.callCount(1);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('does not restrict a key without algs', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest('algorithm="hmac-sha256"'));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+                expect(verifierStub.firstCall.args[2]).to.have.property('alg', 'hmac-sha256');
+            });
+            it('does not restrict a signature without an algorithm', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['ed25519'] } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest());
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+                expect(verifierStub.firstCall.args[2]).to.not.have.property('alg');
+            });
+            it('does not check hs2019 against the key algs', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['ed25519'] } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest('algorithm="hs2019"'));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+            it('checks the algorithm that is passed to the verifier when it is repeated', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['ed25519'] } : null);
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest(['algorithm="hs2019"', 'Algorithm="hmac-sha256"']));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            [
+                ['alg="hmac-sha256"'],
+                ['algorithm="rsa-sha256"', 'alg="hmac-sha256"'],
+                ['algorithm="hs2019"', 'alg="hmac-sha256"'],
+            ].forEach((algParams) => {
+                it(`checks a literal alg parameter (${algParams.join(', ')})`, async () => {
+                    const verifierStub = stub().resolves(true);
+                    const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['rsa-v1_5-sha256'] } : null);
+                    const valid = await cavage.verifyMessage({
+                        keyLookup,
+                    }, makeRequest(algParams));
+                    expect(valid).to.equal(false);
+                    expect(verifierStub).to.have.callCount(0);
+                });
+            });
+        });
         describe('responses', () => {
             const response: Response = {
                 status: 200,

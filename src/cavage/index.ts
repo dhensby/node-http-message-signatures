@@ -1,5 +1,5 @@
 import { parseItem } from 'structured-headers';
-import { Algorithm, Request, Response, SignConfig, VerifyConfig, defaultParams, isRequest } from '../types';
+import { Algorithm, Request, Response, SignConfig, SignatureParameters, VerifyConfig, defaultParams, isRequest } from '../types';
 import { quoteString } from '../structured-header';
 
 function mapCavageAlgorithm(alg: string): Algorithm {
@@ -302,5 +302,13 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         });
     }, {});
     const key = await config.keyLookup(params);
+    // the key must allow the `alg` that is passed to the verifier. it comes from the last `algorithm` (in any case)
+    // or `alg` parameter. `algorithm="hs2019"` means "use the key's algorithm", so it is not checked.
+    const { alg } = params as SignatureParameters;
+    const [algSource, algSourceValue] = Array.from(parsedHeader.entries()).reverse().find(([name]) => name === 'alg' || name.toLowerCase() === 'algorithm') ?? [];
+    const keyChoosesAlg = algSource !== 'alg' && algSourceValue?.toLowerCase() === 'hs2019';
+    if (key?.algs && alg !== undefined && !keyChoosesAlg && !key.algs.includes(alg)) {
+        return false;
+    }
     return key?.verify(Buffer.from(base), Buffer.from(parsedHeader.get('signature'), 'base64'), params) ?? null;
 }
