@@ -191,9 +191,9 @@ const { httpbis: { verifyMessage }, createVerifier } = require('http-message-sig
 })().catch(console.error);
 ```
 
-`verifyMessage()` resolves to `true` if the signatures are valid and `false` if they are not. It resolves to `null` if
-the result can't be determined, for example when the message has no signatures or no key is found. It throws an error
-if a signature is not acceptable, for example because it has expired or is malformed.
+`httpbis.verifyMessage()` resolves to `true` if the signatures are valid and `false` if they are not. It resolves to
+`null` if the result can't be determined, for example when the message has no signatures or no key is found. It throws
+an error if a signature is not acceptable, for example because it has expired or is malformed.
 
 If a message has more than one signature, one valid signature is enough by default. Set `all: true` to require every
 signature to be valid. If verification does not pass, the order of the signatures does not change the result: the error
