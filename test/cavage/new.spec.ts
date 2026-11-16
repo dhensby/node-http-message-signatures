@@ -523,5 +523,68 @@ describe('cavage', () => {
                 expect(verifierStub).to.have.callCount(1);
             });
         });
+        describe('maxAge', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const makeRequest = (created: number): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: `keyId="test-key-a", algorithm="hs2019", created=${created}, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
+                },
+            });
+            it('rejects a signature older than maxAge', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created 301 seconds before now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequest(1664267351));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('accepts a signature within maxAge', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created 299 seconds before now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                }, makeRequest(1664267353));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+            it('honours tolerance when checking maxAge', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created 302 seconds before now, but a five second tolerance keeps it valid
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                    tolerance: 5,
+                }, makeRequest(1664267350));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+            it('rejects a signature older than maxAge plus tolerance', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created 306 seconds before now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    maxAge: 300,
+                    tolerance: 5,
+                }, makeRequest(1664267346));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+        });
     });
 });

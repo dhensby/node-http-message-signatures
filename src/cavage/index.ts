@@ -251,14 +251,14 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         return false;
     }
     if (parsedHeader.has('created')) {
-        const created = parsedHeader.get('created') as number - tolerance;
+        const created = parsedHeader.get('created') as number;
         // maxAge overrides expires.
-        // signature is older than maxAge
-        if (maxAge && created - now > maxAge) {
+        // signature is older than maxAge (allowing for clock tolerance)
+        if (maxAge && now - created > maxAge + tolerance) {
             return false;
         }
-        // created after the allowed time (ie: created in the future)
-        if (created > notAfter) {
+        // created after the allowed time (ie: created in the future, allowing for clock tolerance)
+        if (created - tolerance > notAfter) {
             return false;
         }
     }
