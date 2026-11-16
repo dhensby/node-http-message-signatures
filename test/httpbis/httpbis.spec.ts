@@ -2280,5 +2280,210 @@ describe('httpbis', () => {
                 expect(result).to.equal(true);
             });
         });
+        describe('multiple signatures', () => {
+            const multipleRequest: Request = {
+                method: 'POST',
+                url: 'https://example.com/transfer',
+                headers: {
+                    Host: 'example.com',
+                },
+            };
+            const signatureInput = '("@method" "@target-uri")';
+            const withSignatures = (order: string[], params: Record<string, string> = {}): Request => ({
+                ...multipleRequest,
+                headers: {
+                    ...multipleRequest.headers,
+                    'Signature-Input': order.map((id) => `sig-${id.toLowerCase()}=${signatureInput};keyid="${id}"${params[id] ?? ''}`).join(', '),
+                    'Signature': order.map((id) => `sig-${id.toLowerCase()}=:${Buffer.from(id).toString('base64')}:`).join(', '),
+                },
+            });
+            const keyLookupFor = (validKeyIds: string | string[] | null) => async ({ keyid }: { keyid?: string }) => ({
+                id: keyid,
+                verify: async () => validKeyIds !== null && (
+                    Array.isArray(validKeyIds) ? validKeyIds.includes(keyid ?? '') : keyid === validKeyIds
+                ),
+            });
+            const validB = keyLookupFor('B');
+            const validNone = keyLookupFor(null);
+            const now = 1700000000;
+            before('mock time', () => {
+                MockDate.set(new Date(now * 1000));
+            });
+            after('reset time', () => MockDate.reset());
+
+            it('rejects an invalid signature followed by a valid one when all is true', async () => {
+                const result = await httpbis.verifyMessage({
+                    keyLookup: validB,
+                    all: true,
+                }, withSignatures(['A', 'B']));
+                expect(result).to.equal(false);
+            });
+            it('rejects a valid signature followed by an invalid one when all is true', async () => {
+                const result = await httpbis.verifyMessage({
+                    keyLookup: validB,
+                    all: true,
+                }, withSignatures(['B', 'A']));
+                expect(result).to.equal(false);
+            });
+            it('accepts when every signature is valid and all is true', async () => {
+                const result = await httpbis.verifyMessage({
+                    keyLookup: keyLookupFor(['A', 'B']),
+                    all: true,
+                }, withSignatures(['A', 'B']));
+                expect(result).to.equal(true);
+            });
+            it('accepts an invalid signature followed by a valid one by default', async () => {
+                const result = await httpbis.verifyMessage({
+                    keyLookup: validB,
+                }, withSignatures(['A', 'B']));
+                expect(result).to.equal(true);
+            });
+            it('accepts a valid signature followed by an invalid one by default', async () => {
+                const result = await httpbis.verifyMessage({
+                    keyLookup: validB,
+                }, withSignatures(['B', 'A']));
+                expect(result).to.equal(true);
+            });
+            it('accepts a valid signature followed by an expired one by default', async () => {
+                const expired = now - 3600;
+                const result = await httpbis.verifyMessage({
+                    keyLookup: validB,
+                }, {
+                    ...multipleRequest,
+                    headers: {
+                        ...multipleRequest.headers,
+                        'Signature-Input': `sig-b=${signatureInput};keyid="B", sig-a=${signatureInput};keyid="A";created=${expired - 60};expires=${expired}`,
+                        'Signature': 'sig-b=:Qg==:, sig-a=:QQ==:',
+                    },
+                });
+                expect(result).to.equal(true);
+            });
+            it('throws for a valid signature followed by an expired one when all is true', async () => {
+                const expired = now - 3600;
+                try {
+                    await httpbis.verifyMessage({
+                        keyLookup: validB,
+                        all: true,
+                    }, {
+                        ...multipleRequest,
+                        headers: {
+                            ...multipleRequest.headers,
+                            'Signature-Input': `sig-b=${signatureInput};keyid="B", sig-a=${signatureInput};keyid="A";created=${expired - 60};expires=${expired}`,
+                            'Signature': 'sig-b=:Qg==:, sig-a=:QQ==:',
+                        },
+                    });
+                } catch (e) {
+                    expect(e).to.be.instanceOf(ExpiredError);
+                    return;
+                }
+                expect.fail('Expected to throw');
+            });
+            it('rejects when every signature is invalid by default', async () => {
+                const result = await httpbis.verifyMessage({
+                    keyLookup: validNone,
+                }, withSignatures(['A', 'B']));
+                expect(result).to.equal(false);
+            });
+            describe('outcome does not depend on signature order', () => {
+                type Outcome = 'valid' | 'invalid' | 'indeterminate' | 'unknown' | 'lookup-error';
+                const keyLookupWith = (outcomes: Record<string, Outcome>) => async ({ keyid }: { keyid?: string }) => {
+                    const outcome = outcomes[keyid ?? ''];
+                    if (outcome === 'lookup-error') {
+                        throw new Error(`Key lookup failed for ${keyid}`);
+                    }
+                    if (outcome === 'unknown') {
+                        return null;
+                    }
+                    return {
+                        id: keyid,
+                        verify: async () => outcome === 'indeterminate' ? null : outcome === 'valid',
+                    };
+                };
+                const expiredA = { A: `;created=${now - 3660};expires=${now - 3600}` };
+                [['A', 'B'], ['B', 'A']].forEach((order) => {
+                    describe(`with signatures in the order ${order.join(', ')}`, () => {
+                        it('returns null when all is true and a result is indeterminate', async () => {
+                            const result = await httpbis.verifyMessage({
+                                keyLookup: keyLookupWith({ A: 'indeterminate', B: 'valid' }),
+                                all: true,
+                            }, withSignatures(order));
+                            expect(result).to.equal(null);
+                        });
+                        it('rejects an invalid and an indeterminate signature by default', async () => {
+                            const result = await httpbis.verifyMessage({
+                                keyLookup: keyLookupWith({ A: 'invalid', B: 'indeterminate' }),
+                            }, withSignatures(order));
+                            expect(result).to.equal(false);
+                        });
+                        it('rejects an invalid signature and an unknown key by default', async () => {
+                            const result = await httpbis.verifyMessage({
+                                keyLookup: keyLookupWith({ A: 'unknown', B: 'invalid' }),
+                            }, withSignatures(order));
+                            expect(result).to.equal(false);
+                        });
+                        it('accepts a valid signature when another key lookup fails by default', async () => {
+                            const result = await httpbis.verifyMessage({
+                                keyLookup: keyLookupWith({ A: 'lookup-error', B: 'valid' }),
+                            }, withSignatures(order));
+                            expect(result).to.equal(true);
+                        });
+                        it('throws when a key lookup fails and all is true', async () => {
+                            try {
+                                await httpbis.verifyMessage({
+                                    keyLookup: keyLookupWith({ A: 'lookup-error', B: 'valid' }),
+                                    all: true,
+                                }, withSignatures(order));
+                            } catch (e) {
+                                expect(e).to.have.property('message', 'Key lookup failed for A');
+                                return;
+                            }
+                            expect.fail('Expected to throw');
+                        });
+                        it('accepts an expired and a valid signature by default', async () => {
+                            const result = await httpbis.verifyMessage({
+                                keyLookup: keyLookupWith({ A: 'valid', B: 'valid' }),
+                            }, withSignatures(order, expiredA));
+                            expect(result).to.equal(true);
+                        });
+                        it('throws for an expired and a valid signature when all is true', async () => {
+                            try {
+                                await httpbis.verifyMessage({
+                                    keyLookup: keyLookupWith({ A: 'valid', B: 'valid' }),
+                                    all: true,
+                                }, withSignatures(order, expiredA));
+                            } catch (e) {
+                                expect(e).to.be.instanceOf(ExpiredError);
+                                return;
+                            }
+                            expect.fail('Expected to throw');
+                        });
+                        it('throws for an expired and an invalid signature by default', async () => {
+                            try {
+                                await httpbis.verifyMessage({
+                                    keyLookup: keyLookupWith({ A: 'valid', B: 'invalid' }),
+                                }, withSignatures(order, expiredA));
+                            } catch (e) {
+                                expect(e).to.be.instanceOf(ExpiredError);
+                                return;
+                            }
+                            expect.fail('Expected to throw');
+                        });
+                        it('throws the error of the first unacceptable signature in the header', async () => {
+                            try {
+                                await httpbis.verifyMessage({
+                                    keyLookup: keyLookupWith({ A: 'valid', B: 'valid' }),
+                                    maxAge: 300,
+                                    all: true,
+                                }, withSignatures(order, { A: `;created=${now - 600}`, B: `;expires=${now - 60}` }));
+                            } catch (e) {
+                                expect(e).to.have.property('message', order[0] === 'A' ? 'Signature is too old' : 'Signature has expired');
+                                return;
+                            }
+                            expect.fail('Expected to throw');
+                        });
+                    });
+                });
+            });
+        });
     });
 });

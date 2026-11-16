@@ -169,7 +169,13 @@ export interface VerifyConfig extends CommonConfig {
     requiredFields?: string[];
     /**
      * Verify every signature in the request. By default, only 1 signature will need to be valid
-     * for the verification to pass.
+     * for the verification to pass. Only `httpbis.verifyMessage()` uses this option.
+     *
+     * With `httpbis.verifyMessage()`, if verification does not pass, the order of the signatures
+     * does not change the outcome: it throws the error of the first unacceptable signature (with
+     * `all`, an unknown key is an error); if there is none, it returns `false` when a signature
+     * failed to verify; otherwise it returns `null`, because no result could be determined (for
+     * example, the key is unknown or the verifier returned `null`).
      * Default: false
      */
     all?: boolean;
