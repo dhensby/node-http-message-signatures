@@ -1,7 +1,7 @@
 import { parseItem } from 'structured-headers';
 import { Algorithm, Request, Response, SignConfig, SignatureParameters, VerifyConfig, defaultParams, isRequest } from '../types';
 import { quoteString } from '../structured-header';
-import { VerificationError } from '../errors';
+import { MalformedSignatureError, UnsupportedAlgorithmError } from '../errors';
 import { checkSignature } from '../verify';
 
 function mapCavageAlgorithm(alg: string): Algorithm {
@@ -229,7 +229,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const parsedHeader = (Array.isArray(header[1]) ? header[1].join(', ') : header[1]).split(',').reduce((parts, value) => {
         const [key, ...values] = value.trim().split('=');
         if (parts.has(key)) {
-            throw new Error('Same parameter defined repeatedly');
+            throw new MalformedSignatureError('Same parameter defined repeatedly');
         }
         const val = values.join('=').replace(/^"(.*)"$/, '$1');
         switch (key.toLowerCase()) {
@@ -243,43 +243,13 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         return parts;
     }, new Map());
     if (!parsedHeader.has('signature')) {
-        throw new Error('Missing signature from header');
+        throw new MalformedSignatureError('Missing signature from header');
     }
     const baseParts = new Map(createSignatureBase((parsedHeader.get('headers') ?? '(created)').split(' ').map((component: string) => {
         return component.toLowerCase().replace(/^\((.*)\)$/, '@$1');
     }), message, parsedHeader));
     const base = formatSignatureBase(Array.from(baseParts.entries()));
-    try {
-        checkSignature(config, {
-            // required params are the Signature header parameters, which use the cavage names (eg: `alg` is `algorithm`).
-            // Names must match exactly, because the checks read them by their exact name: `Expires` is not `expires`
-            hasParam: (param) => {
-                switch (param.toLowerCase()) {
-                    case 'keyid':
-                        return parsedHeader.has('keyId');
-                    case 'alg':
-                    case 'algorithm':
-                        return parsedHeader.has('algorithm');
-                    default:
-                        return parsedHeader.has(param);
-                }
-            },
-            // required fields are the signed components; a derived component such as `@created` is signed as `(created)`
-            hasField: (field) => baseParts.has(field.toLowerCase().replace(/^@(.*)$/, '($1)')),
-            created: parsedHeader.get('created'),
-            expires: parsedHeader.get('expires'),
-            // the creation time is the created parameter if the signature signs `(created)`, or the `date` header
-            signedAt: () => getSignedCreationTime(parsedHeader, baseParts),
-        }, Math.floor(Date.now() / 1000));
-    } catch (e) {
-        // a signature that isn't acceptable fails verification
-        if (e instanceof VerificationError) {
-            return false;
-        }
-        throw e;
-    }
-    // now look to verify the signature! Build the expected "signing base" and verify it!
-    const params = Array.from(parsedHeader.entries()).reduce((params, [key, value]) => {
+    const params =Array.from(parsedHeader.entries()).reduce((params, [key, value]) => {
         let keyName = key;
         let val: Date | number | string;
         switch (key.toLowerCase()) {
@@ -311,13 +281,39 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         });
     }, {});
     const key = await config.keyLookup(params);
+    // an unknown key means the signature can't be verified
+    if (!key) {
+        return null;
+    }
     // the key must allow the `alg` that is passed to the verifier. it comes from the last `algorithm` (in any case)
     // or `alg` parameter. `algorithm="hs2019"` means "use the key's algorithm", so it is not checked.
     const { alg } = params as SignatureParameters;
     const [algSource, algSourceValue] = Array.from(parsedHeader.entries()).reverse().find(([name]) => name === 'alg' || name.toLowerCase() === 'algorithm') ?? [];
     const keyChoosesAlg = algSource !== 'alg' && algSourceValue?.toLowerCase() === 'hs2019';
-    if (key?.algs && alg !== undefined && !keyChoosesAlg && !key.algs.includes(alg)) {
-        return false;
+    if (key.algs && alg !== undefined && !keyChoosesAlg && !key.algs.includes(alg)) {
+        throw new UnsupportedAlgorithmError('Unsupported key algorithm');
     }
-    return key?.verify(Buffer.from(base), Buffer.from(parsedHeader.get('signature'), 'base64'), params) ?? null;
+    checkSignature(config, {
+        // required params are the Signature header parameters, which use the cavage names (eg: `alg` is `algorithm`).
+        // Names must match exactly, because the checks read them by their exact name: `Expires` is not `expires`
+        hasParam: (param) => {
+            switch (param.toLowerCase()) {
+                case 'keyid':
+                    return parsedHeader.has('keyId');
+                case 'alg':
+                case 'algorithm':
+                    return parsedHeader.has('algorithm');
+                default:
+                    return parsedHeader.has(param);
+            }
+        },
+        // required fields are the signed components; a derived component such as `@created` is signed as `(created)`
+        hasField: (field) => baseParts.has(field.toLowerCase().replace(/^@(.*)$/, '($1)')),
+        created: parsedHeader.get('created'),
+        expires: parsedHeader.get('expires'),
+        // the creation time is the created parameter if the signature signs `(created)`, or the `date` header
+        signedAt: () => getSignedCreationTime(parsedHeader, baseParts),
+    }, Math.floor(Date.now() / 1000));
+    // now verify the signature against the signature base
+    return key.verify(Buffer.from(base), Buffer.from(parsedHeader.get('signature'), 'base64'), params);
 }

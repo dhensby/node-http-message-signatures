@@ -1,5 +1,13 @@
 import * as cavage from '../../src/cavage';
-import { Request, Response, SigningKey } from '../../src';
+import {
+    ExpiredError,
+    MalformedSignatureError,
+    Request,
+    Response,
+    SigningKey,
+    UnacceptableSignatureError,
+    UnsupportedAlgorithmError,
+} from '../../src';
 import { expect } from 'chai';
 import { describe } from 'mocha';
 import * as MockDate from 'mockdate';
@@ -398,6 +406,15 @@ describe('cavage', () => {
         });
     });
     describe('.verifyMessage', () => {
+        // resolves to the error that verifyMessage() rejects with
+        const verifyError = async (...args: Parameters<typeof cavage.verifyMessage>): Promise<unknown> => {
+            try {
+                await cavage.verifyMessage(...args);
+            } catch (e) {
+                return e;
+            }
+            return expect.fail('Expected to throw');
+        };
         describe('requests', () => {
             const request: Request = {
                 method: 'post',
@@ -467,10 +484,11 @@ describe('cavage', () => {
             it('rejects an algorithm that the key does not allow', async () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['rsa-v1_5-sha256'] } : null);
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                 }, makeRequest('algorithm="hmac-sha256"'));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(UnsupportedAlgorithmError);
+                expect(error).to.have.property('message', 'Unsupported key algorithm');
                 expect(keyLookup).to.have.callCount(1);
                 expect(verifierStub).to.have.callCount(0);
             });
@@ -506,10 +524,10 @@ describe('cavage', () => {
             it('checks the algorithm that is passed to the verifier when it is repeated', async () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['ed25519'] } : null);
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                 }, makeRequest(['algorithm="hs2019"', 'Algorithm="hmac-sha256"']));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(UnsupportedAlgorithmError);
                 expect(verifierStub).to.have.callCount(0);
             });
             [
@@ -520,10 +538,10 @@ describe('cavage', () => {
                 it(`checks a literal alg parameter (${algParams.join(', ')})`, async () => {
                     const verifierStub = stub().resolves(true);
                     const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub, algs: ['rsa-v1_5-sha256'] } : null);
-                    const valid = await cavage.verifyMessage({
+                    const error = await verifyError({
                         keyLookup,
                     }, makeRequest(algParams));
-                    expect(valid).to.equal(false);
+                    expect(error).to.be.instanceOf(UnsupportedAlgorithmError);
                     expect(verifierStub).to.have.callCount(0);
                 });
             });
@@ -596,12 +614,13 @@ describe('cavage', () => {
                 it('rejects a signature that is missing a required param', async () => {
                     const verifierStub = stub().resolves(true);
                     const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
-                    const valid = await cavage.verifyMessage({
+                    const error = await verifyError({
                         keyLookup,
                         requiredParams: ['created', 'expires'],
                     }, request);
-                    expect(valid).to.equal(false);
-                    expect(keyLookup).to.have.callCount(0);
+                    expect(error).to.be.instanceOf(UnacceptableSignatureError);
+                    expect(error).to.have.property('message', 'Missing required signature parameters');
+                    expect(keyLookup).to.have.callCount(1);
                     expect(verifierStub).to.have.callCount(0);
                 });
                 // the created and expires checks only read lower case names, so other cases must not satisfy the requirement
@@ -612,7 +631,7 @@ describe('cavage', () => {
                     it(`rejects a signature where the required ${param} param has a different case`, async () => {
                         const verifierStub = stub().resolves(true);
                         const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
-                        const valid = await cavage.verifyMessage({
+                        const error = await verifyError({
                             keyLookup,
                             requiredParams: [param],
                         }, {
@@ -622,8 +641,9 @@ describe('cavage', () => {
                                 Signature: `keyId="test-key-a", algorithm="hs2019", ${signatureParam}, headers="host", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
                             },
                         });
-                        expect(valid).to.equal(false);
-                        expect(keyLookup).to.have.callCount(0);
+                        expect(error).to.be.instanceOf(UnacceptableSignatureError);
+                        expect(error).to.have.property('message', 'Missing required signature parameters');
+                        expect(keyLookup).to.have.callCount(1);
                         expect(verifierStub).to.have.callCount(0);
                     });
                 });
@@ -643,12 +663,13 @@ describe('cavage', () => {
                     const verifierStub = stub().resolves(true);
                     const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                     // content-type is in the message, but it is not signed
-                    const valid = await cavage.verifyMessage({
+                    const error = await verifyError({
                         keyLookup,
                         requiredFields: ['content-digest', 'content-type'],
                     }, request);
-                    expect(valid).to.equal(false);
-                    expect(keyLookup).to.have.callCount(0);
+                    expect(error).to.be.instanceOf(UnacceptableSignatureError);
+                    expect(error).to.have.property('message', 'Missing required signed fields');
+                    expect(keyLookup).to.have.callCount(1);
                     expect(verifierStub).to.have.callCount(0);
                 });
             });
@@ -673,10 +694,11 @@ describe('cavage', () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 // expires one second before now
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                 }, makeRequest(1664267651));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(ExpiredError);
+                expect(error).to.have.property('message', 'Signature has expired');
                 expect(verifierStub).to.have.callCount(0);
             });
             it('accepts a signature that has not yet expired', async () => {
@@ -730,11 +752,12 @@ describe('cavage', () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 // date is 301 seconds before now
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                     maxAge: 300,
                 }, makeRequestWithDate('keyId="test-key-a", algorithm="rsa-sha256", headers="host date", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'Tue, 27 Sep 2022 08:29:11 GMT'));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(ExpiredError);
+                expect(error).to.have.property('message', 'Signature is too old');
                 expect(verifierStub).to.have.callCount(0);
             });
             it('accepts a signature whose signed date header is within maxAge', async () => {
@@ -752,11 +775,12 @@ describe('cavage', () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 // created is 301 seconds before now, date is now
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                     maxAge: 300,
                 }, makeRequestWithDate('keyId="test-key-a", algorithm="hs2019", created=1664267351, headers="(created) date", signature="YSBmYWtlIHNpZ25hdHVyZQ=="', 'Tue, 27 Sep 2022 08:34:12 GMT'));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(ExpiredError);
+                expect(error).to.have.property('message', 'Signature is too old');
                 expect(verifierStub).to.have.callCount(0);
             });
             it('does not check the age if the signature signs neither the created time nor the date header', async () => {
@@ -784,11 +808,12 @@ describe('cavage', () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 // created 301 seconds before now
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                     maxAge: 300,
                 }, makeRequest(1664267351));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(ExpiredError);
+                expect(error).to.have.property('message', 'Signature is too old');
                 expect(verifierStub).to.have.callCount(0);
             });
             it('accepts a signature within maxAge', async () => {
@@ -818,13 +843,98 @@ describe('cavage', () => {
                 const verifierStub = stub().resolves(true);
                 const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
                 // created 306 seconds before now
-                const valid = await cavage.verifyMessage({
+                const error = await verifyError({
                     keyLookup,
                     maxAge: 300,
                     tolerance: 5,
                 }, makeRequest(1664267346));
-                expect(valid).to.equal(false);
+                expect(error).to.be.instanceOf(ExpiredError);
+                expect(error).to.have.property('message', 'Signature is too old');
                 expect(verifierStub).to.have.callCount(0);
+            });
+        });
+        describe('notAfter', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const makeRequest = (created: number): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: `keyId="test-key-a", algorithm="hs2019", created=${created}, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
+                },
+            });
+            it('rejects a signature created after now by default', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created one second after now
+                const error = await verifyError({
+                    keyLookup,
+                }, makeRequest(1664267653));
+                expect(error).to.be.instanceOf(ExpiredError);
+                expect(error).to.have.property('message', 'Signature is too old');
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('accepts a signature created before notAfter', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created one second after now, but notAfter is two seconds after now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    notAfter: new Date('2022-09-27 08:34:14 GMT'),
+                }, makeRequest(1664267653));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+        });
+        describe('malformed signatures and unknown keys', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const makeRequest = (signature: string): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: signature,
+                },
+            });
+            it('throws if the signature value is missing', async () => {
+                const keyLookup = stub().resolves(null);
+                const error = await verifyError({
+                    keyLookup,
+                }, makeRequest('keyId="test-key-a", algorithm="hs2019", created=1664267652, headers="(created)"'));
+                expect(error).to.be.instanceOf(MalformedSignatureError);
+                expect(error).to.have.property('message', 'Missing signature from header');
+                expect(keyLookup).to.have.callCount(0);
+            });
+            it('throws if a parameter is repeated', async () => {
+                const keyLookup = stub().resolves(null);
+                const error = await verifyError({
+                    keyLookup,
+                }, makeRequest('keyId="test-key-a", keyId="test-key-b", algorithm="hs2019", created=1664267652, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="'));
+                expect(error).to.be.instanceOf(MalformedSignatureError);
+                expect(error).to.have.property('message', 'Same parameter defined repeatedly');
+                expect(keyLookup).to.have.callCount(0);
+            });
+            it('returns null for an unknown key, even if the signature is not acceptable', async () => {
+                const keyLookup = stub().resolves(null);
+                // expired one second before now
+                const result = await cavage.verifyMessage({
+                    keyLookup,
+                    requiredParams: ['nonce'],
+                }, makeRequest('keyId="test-key-a", algorithm="hs2019", created=1664267652, expires=1664267651, headers="(created) (expires)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="'));
+                expect(result).to.equal(null);
+                expect(keyLookup).to.have.callCount(1);
             });
         });
     });
