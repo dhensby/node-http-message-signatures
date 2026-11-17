@@ -1,5 +1,5 @@
 import * as cavage from '../../src/cavage';
-import { Request, Response, SigningKey } from '../../src';
+import { MalformedSignatureError, Request, Response, SigningKey } from '../../src';
 import { expect } from 'chai';
 import { describe } from 'mocha';
 import * as MockDate from 'mockdate';
@@ -825,6 +825,106 @@ describe('cavage', () => {
                 }, makeRequest(1664267346));
                 expect(valid).to.equal(false);
                 expect(verifierStub).to.have.callCount(0);
+            });
+        });
+        describe('notAfter', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const makeRequest = (created: number): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: `keyId="test-key-a", algorithm="hs2019", created=${created}, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="`,
+                },
+            });
+            it('rejects a signature created after now by default', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created one second after now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest(1664267653));
+                expect(valid).to.equal(false);
+                expect(verifierStub).to.have.callCount(0);
+            });
+            it('accepts a signature created before notAfter', async () => {
+                const verifierStub = stub().resolves(true);
+                const keyLookup = stub().callsFake(async ({ keyid }) => keyid === 'test-key-a' ? { verify: verifierStub } : null);
+                // created one second after now, but notAfter is two seconds after now
+                const valid = await cavage.verifyMessage({
+                    keyLookup,
+                    notAfter: new Date('2022-09-27 08:34:14 GMT'),
+                }, makeRequest(1664267653));
+                expect(valid).to.equal(true);
+                expect(verifierStub).to.have.callCount(1);
+            });
+        });
+        describe('malformed signatures and unknown keys', () => {
+            // now === 1664267652
+            beforeEach(() => {
+                MockDate.set(new Date('2022-09-27 08:34:12 GMT'));
+            });
+            afterEach(() => {
+                MockDate.reset();
+            });
+            const makeRequest = (signature: string): Request => ({
+                method: 'post',
+                url: 'https://example.com/foo',
+                headers: {
+                    Host: 'example.com',
+                    Signature: signature,
+                },
+            });
+            it('throws if the signature value is missing', async () => {
+                const keyLookup = stub().resolves(null);
+                try {
+                    await cavage.verifyMessage({
+                        keyLookup,
+                    }, makeRequest('keyId="test-key-a", algorithm="hs2019", created=1664267652, headers="(created)"'));
+                } catch (e) {
+                    expect(e).to.be.instanceOf(MalformedSignatureError);
+                    expect(e).to.have.property('message', 'Missing signature from header');
+                    expect(keyLookup).to.have.callCount(0);
+                    return;
+                }
+                expect.fail('Expected to throw');
+            });
+            it('throws if a parameter is repeated', async () => {
+                const keyLookup = stub().resolves(null);
+                try {
+                    await cavage.verifyMessage({
+                        keyLookup,
+                    }, makeRequest('keyId="test-key-a", keyId="test-key-b", algorithm="hs2019", created=1664267652, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="'));
+                } catch (e) {
+                    expect(e).to.be.instanceOf(MalformedSignatureError);
+                    expect(e).to.have.property('message', 'Same parameter defined repeatedly');
+                    expect(keyLookup).to.have.callCount(0);
+                    return;
+                }
+                expect.fail('Expected to throw');
+            });
+            it('returns null for an unknown key', async () => {
+                const keyLookup = stub().resolves(null);
+                const result = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest('keyId="test-key-a", algorithm="hs2019", created=1664267652, headers="(created)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="'));
+                expect(result).to.equal(null);
+                expect(keyLookup).to.have.callCount(1);
+            });
+            it('rejects a signature that is not acceptable before it looks up the key', async () => {
+                const keyLookup = stub().resolves(null);
+                // expired one second before now
+                const result = await cavage.verifyMessage({
+                    keyLookup,
+                }, makeRequest('keyId="test-key-a", algorithm="hs2019", created=1664267652, expires=1664267651, headers="(created) (expires)", signature="YSBmYWtlIHNpZ25hdHVyZQ=="'));
+                expect(result).to.equal(false);
+                expect(keyLookup).to.have.callCount(0);
             });
         });
     });

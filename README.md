@@ -200,6 +200,12 @@ signature to be valid. If verification does not pass, the order of the signature
 of the first unacceptable signature is thrown, otherwise `false` is returned if a signature failed to verify, otherwise
 `null` is returned.
 
+`cavage.verifyMessage()` resolves to the same values, but it does not throw an error when a signature is not acceptable.
+It resolves to `false` instead, for example when the signature has expired, does not have a required parameter or field,
+or uses an algorithm that the key does not allow. It checks the signature times and the required parameters and fields
+before it looks up the key, so a signature that fails these checks resolves to `false` even if no key is found. It
+throws a `MalformedSignatureError` if the `Signature` header has no signature value or repeats a parameter.
+
 ### Verifying a response with request components
 
 The HTTP Message Signatures specification allows for responses to reference parts of the request and incorporate them
