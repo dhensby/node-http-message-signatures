@@ -253,13 +253,25 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const maxAge = config.maxAge ?? null;
     const requiredParams = config.requiredParams ?? [];
     const requiredFields = config.requiredFields ?? [];
-    const hasRequiredParams = requiredParams.every((param) => baseParts.has(param));
+    // required params are the Signature header parameters, which use the cavage names (eg: `alg` is `algorithm`).
+    // Names must match exactly, because the checks below read them by their exact name: `Expires` is not `expires`
+    const hasRequiredParams = requiredParams.every((param) => {
+        switch (param.toLowerCase()) {
+            case 'keyid':
+                return parsedHeader.has('keyId');
+            case 'alg':
+            case 'algorithm':
+                return parsedHeader.has('algorithm');
+            default:
+                return parsedHeader.has(param);
+        }
+    });
     if (!hasRequiredParams) {
         return false;
     }
-    // this could be tricky, what if we say "@method" but there is "@method;req"
+    // required fields are the signed components; a derived component such as `@created` is signed as `(created)`
     const hasRequiredFields = requiredFields.every((field) => {
-        return parsedHeader.has(field.toLowerCase().replace(/^@(.*)/, '($1)'));
+        return baseParts.has(field.toLowerCase().replace(/^@(.*)$/, '($1)'));
     });
     if (!hasRequiredFields) {
         return false;
