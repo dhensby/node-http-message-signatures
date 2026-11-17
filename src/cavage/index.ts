@@ -1,6 +1,8 @@
 import { parseItem } from 'structured-headers';
 import { Algorithm, Request, Response, SignConfig, SignatureParameters, VerifyConfig, defaultParams, isRequest } from '../types';
 import { quoteString } from '../structured-header';
+import { VerificationError } from '../errors';
+import { checkSignature } from '../verify';
 
 function mapCavageAlgorithm(alg: string): Algorithm {
     switch (alg.toLowerCase()) {
@@ -247,57 +249,34 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         return component.toLowerCase().replace(/^\((.*)\)$/, '@$1');
     }), message, parsedHeader));
     const base = formatSignatureBase(Array.from(baseParts.entries()));
-    const now = Math.floor(Date.now() / 1000);
-    const tolerance = config.tolerance ?? 0;
-    const notAfter = config.notAfter instanceof Date ? Math.floor(config.notAfter.getTime() / 1000) : config.notAfter ?? now;
-    const maxAge = config.maxAge ?? null;
-    const requiredParams = config.requiredParams ?? [];
-    const requiredFields = config.requiredFields ?? [];
-    // required params are the Signature header parameters, which use the cavage names (eg: `alg` is `algorithm`).
-    // Names must match exactly, because the checks below read them by their exact name: `Expires` is not `expires`
-    const hasRequiredParams = requiredParams.every((param) => {
-        switch (param.toLowerCase()) {
-            case 'keyid':
-                return parsedHeader.has('keyId');
-            case 'alg':
-            case 'algorithm':
-                return parsedHeader.has('algorithm');
-            default:
-                return parsedHeader.has(param);
-        }
-    });
-    if (!hasRequiredParams) {
-        return false;
-    }
-    // required fields are the signed components; a derived component such as `@created` is signed as `(created)`
-    const hasRequiredFields = requiredFields.every((field) => {
-        return baseParts.has(field.toLowerCase().replace(/^@(.*)$/, '($1)'));
-    });
-    if (!hasRequiredFields) {
-        return false;
-    }
-    // maxAge overrides expires.
-    // maxAge is best effort: it is checked only if the signature signs `(created)` or the `date` header
-    if (maxAge) {
-        const signedAt = getSignedCreationTime(parsedHeader, baseParts);
-        // signature is older than maxAge (allowing for clock tolerance)
-        if (signedAt !== null && now - signedAt > maxAge + tolerance) {
+    try {
+        checkSignature(config, {
+            // required params are the Signature header parameters, which use the cavage names (eg: `alg` is `algorithm`).
+            // Names must match exactly, because the checks read them by their exact name: `Expires` is not `expires`
+            hasParam: (param) => {
+                switch (param.toLowerCase()) {
+                    case 'keyid':
+                        return parsedHeader.has('keyId');
+                    case 'alg':
+                    case 'algorithm':
+                        return parsedHeader.has('algorithm');
+                    default:
+                        return parsedHeader.has(param);
+                }
+            },
+            // required fields are the signed components; a derived component such as `@created` is signed as `(created)`
+            hasField: (field) => baseParts.has(field.toLowerCase().replace(/^@(.*)$/, '($1)')),
+            created: parsedHeader.get('created'),
+            expires: parsedHeader.get('expires'),
+            // the creation time is the created parameter if the signature signs `(created)`, or the `date` header
+            signedAt: () => getSignedCreationTime(parsedHeader, baseParts),
+        }, Math.floor(Date.now() / 1000));
+    } catch (e) {
+        // a signature that isn't acceptable fails verification
+        if (e instanceof VerificationError) {
             return false;
         }
-    }
-    if (parsedHeader.has('created')) {
-        const created = parsedHeader.get('created') as number;
-        // created after the allowed time (ie: created in the future, allowing for clock tolerance)
-        if (created - tolerance > notAfter) {
-            return false;
-        }
-    }
-    if (parsedHeader.has('expires')) {
-        const expires = parsedHeader.get('expires') as number + tolerance;
-        // expired signature
-        if (expires < now) {
-            return false;
-        }
+        throw e;
     }
     // now look to verify the signature! Build the expected "signing base" and verify it!
     const params = Array.from(parsedHeader.entries()).reduce((params, [key, value]) => {
