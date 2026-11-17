@@ -25,12 +25,11 @@ import {
     CommonConfig,
 } from '../types';
 import {
-    ExpiredError,
     MalformedSignatureError,
-    UnacceptableSignatureError,
     UnknownKeyError,
     UnsupportedAlgorithmError,
 } from '../errors';
+import { checkSignature } from '../verify';
 
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, res: Response, req?: Request): string[];
 export function deriveComponent(component: string, params: Map<string, string | number | boolean>, req: Request): string[];
@@ -385,11 +384,6 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         throw new Error('Incomplete signature headers');
     }
     const now = Math.floor(Date.now() / 1000);
-    const tolerance = config.tolerance ?? 0;
-    const notAfter = config.notAfter instanceof Date ? Math.floor(config.notAfter.getTime() / 1000) : config.notAfter ?? now;
-    const maxAge = config.maxAge ?? null;
-    const requiredParams = config.requiredParams ?? [];
-    const requiredFields = config.requiredFields ?? [];
     // check each signature on its own: a signature resolves to `true` or `false` once it has been
     // verified, resolves to `null` if it can't be checked (an unknown key, or an indeterminate
     // result from the verifier), or rejects if it isn't acceptable
@@ -428,38 +422,15 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         if (!isInnerList(input)) {
             throw new MalformedSignatureError('Malformed signature input');
         }
-        const hasRequiredParams = requiredParams.every((param) => input[1].has(param));
-        if (!hasRequiredParams) {
-            throw new UnacceptableSignatureError('Missing required signature parameters');
-        }
-        // this could be tricky, what if we say "@method" but there is "@method;req"
-        const hasRequiredFields = requiredFields.every((field) => input[0].some(([fieldName]) => fieldName === field));
-        if (!hasRequiredFields) {
-            throw new UnacceptableSignatureError('Missing required signed fields');
-        }
-        // maxAge overrides expires.
-        // maxAge is best effort: it is checked only if the signature has a created time or covers the date header
-        if (maxAge) {
-            const signedAt = getSignedCreationTime(input, message);
-            // signature is older than maxAge (allowing for clock tolerance)
-            if (signedAt !== null && now - signedAt > maxAge + tolerance) {
-                throw new ExpiredError('Signature is too old');
-            }
-        }
-        if (input[1].has('created')) {
-            const created = input[1].get('created') as number;
-            // created after the allowed time (ie: created in the future, allowing for clock tolerance)
-            if (created - tolerance > notAfter) {
-                throw new ExpiredError('Signature is too old');
-            }
-        }
-        if (input[1].has('expires')) {
-            const expires = input[1].get('expires') as number + tolerance;
-            // expired signature
-            if (now > expires) {
-                throw new ExpiredError('Signature has expired');
-            }
-        }
+        checkSignature(config, {
+            hasParam: (param) => input[1].has(param),
+            // this could be tricky, what if we say "@method" but there is "@method;req"
+            hasField: (field) => input[0].some(([fieldName]) => fieldName === field),
+            created: input[1].get('created') as number | undefined,
+            expires: input[1].get('expires') as number | undefined,
+            // the creation time is the created parameter, or the date header if the signature covers it
+            signedAt: () => getSignedCreationTime(input, message),
+        }, now);
 
         // now look to verify the signature! Build the expected "signing base" and verify it!
         const fields = input[0].map((item) => serializeItem(item));
