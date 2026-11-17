@@ -1,7 +1,7 @@
 import { parseItem } from 'structured-headers';
 import { Algorithm, Request, Response, SignConfig, SignatureParameters, VerifyConfig, defaultParams, isRequest } from '../types';
 import { quoteString } from '../structured-header';
-import { VerificationError } from '../errors';
+import { MalformedSignatureError, VerificationError } from '../errors';
 import { checkSignature } from '../verify';
 
 function mapCavageAlgorithm(alg: string): Algorithm {
@@ -229,7 +229,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
     const parsedHeader = (Array.isArray(header[1]) ? header[1].join(', ') : header[1]).split(',').reduce((parts, value) => {
         const [key, ...values] = value.trim().split('=');
         if (parts.has(key)) {
-            throw new Error('Same parameter defined repeatedly');
+            throw new MalformedSignatureError('Same parameter defined repeatedly');
         }
         const val = values.join('=').replace(/^"(.*)"$/, '$1');
         switch (key.toLowerCase()) {
@@ -243,7 +243,7 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         return parts;
     }, new Map());
     if (!parsedHeader.has('signature')) {
-        throw new Error('Missing signature from header');
+        throw new MalformedSignatureError('Missing signature from header');
     }
     const baseParts = new Map(createSignatureBase((parsedHeader.get('headers') ?? '(created)').split(' ').map((component: string) => {
         return component.toLowerCase().replace(/^\((.*)\)$/, '@$1');
