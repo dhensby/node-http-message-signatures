@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.10](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.9...v1.0.10) (2026-11-17)
+
+### Bug Fixes
+
+* **cavage:** reject algorithms that the verifying key does not allow ([278c113](https://github.com/dhensby/node-http-message-signatures/commit/278c11381cfb0c5fc837e9620dc0b04038b74484))
+* **httpbis:** add clock tolerance to maxAge instead of subtracting it ([7b5a9d0](https://github.com/dhensby/node-http-message-signatures/commit/7b5a9d0e65168bff5f2c4470c8574b15fabd7230))
+* **httpbis:** check maxAge against the Date header when created is missing ([7fdfa0d](https://github.com/dhensby/node-http-message-signatures/commit/7fdfa0d6b2e8f24c2757452a2a7f37c83a915336))
+
 ## [1.0.9](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.8...v1.0.9) (2026-11-17)
 
 ### Bug Fixes
