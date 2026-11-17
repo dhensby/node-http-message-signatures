@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.9](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.8...v1.0.9) (2026-11-17)
+
+### Bug Fixes
+
+* **cavage:** check maxAge against the signed created time or Date header ([654459e](https://github.com/dhensby/node-http-message-signatures/commit/654459e2abf5faf6e0bd9281d134caf7aad6acff))
+* **cavage:** check required params and fields against the right values ([b8bdc6a](https://github.com/dhensby/node-http-message-signatures/commit/b8bdc6a7ce8d880c473365d89c78aee7b201714b))
+* **cavage:** enforce maxAge when verifying signatures ([0dcc198](https://github.com/dhensby/node-http-message-signatures/commit/0dcc198607a37853da72d4e66d3bb95dcde5a4ad))
+
 ## [1.0.8](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.7...v1.0.8) (2026-11-16)
 
 ### Bug Fixes
