@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.10...v1.1.0) (2026-11-17)
+
+### Features
+
+* **cavage:** throw MalformedSignatureError for a malformed Signature header ([0363d3b](https://github.com/dhensby/node-http-message-signatures/commit/0363d3b12112e78e8d07831a7bd5a0c240dc2c3a))
+
 ## [1.0.10](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.9...v1.0.10) (2026-11-17)
 
 ### Bug Fixes
