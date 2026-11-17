@@ -9,6 +9,7 @@ import {
     parseList,
     Parameters,
     isInnerList,
+    InnerList,
     arrayBufferToBase64,
     Token,
 } from 'structured-headers';
@@ -338,6 +339,25 @@ export async function signMessage<T extends Request | Response = Request | Respo
     };
 }
 
+/**
+ * Get the time that a signature was created, in seconds, from signed values only: the `created`
+ * parameter, otherwise the `Date` header if the signature covers it. Returns `null` if neither
+ * gives a valid time.
+ */
+function getSignedCreationTime([components, params]: InnerList, { headers }: Request | Response): number | null {
+    if (params.has('created')) {
+        return params.get('created') as number;
+    }
+    // only a plain "date" component covers the Date header of this message
+    if (!components.some(([name, componentParams]) => name === 'date' && componentParams.size === 0)) {
+        return null;
+    }
+    const [, value] = Object.entries(headers).find(([name]) => name.toLowerCase() === 'date') ?? [];
+    const date = Array.isArray(value) ? value.join(', ') : value;
+    const time = date ? Date.parse(date) : NaN;
+    return Number.isNaN(time) ? null : Math.floor(time / 1000);
+}
+
 export async function verifyMessage(config: VerifyConfig, response: Response, request?: Request): Promise<boolean | null>;
 export async function verifyMessage(config: VerifyConfig, request: Request): Promise<boolean | null>;
 
@@ -417,11 +437,19 @@ export async function verifyMessage(config: VerifyConfig, message: Request | Res
         if (!hasRequiredFields) {
             throw new UnacceptableSignatureError('Missing required signed fields');
         }
+        // maxAge overrides expires.
+        // maxAge is best effort: it is checked only if the signature has a created time or covers the date header
+        if (maxAge) {
+            const signedAt = getSignedCreationTime(input, message);
+            // signature is older than maxAge (allowing for clock tolerance)
+            if (signedAt !== null && now - signedAt > maxAge + tolerance) {
+                throw new ExpiredError('Signature is too old');
+            }
+        }
         if (input[1].has('created')) {
-            const created = input[1].get('created') as number - tolerance;
-            // maxAge overrides expires.
-            // signature is older than maxAge
-            if ((maxAge && now - created > maxAge) || created > notAfter) {
+            const created = input[1].get('created') as number;
+            // created after the allowed time (ie: created in the future, allowing for clock tolerance)
+            if (created - tolerance > notAfter) {
                 throw new ExpiredError('Signature is too old');
             }
         }
