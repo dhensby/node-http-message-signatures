@@ -56,7 +56,8 @@ export function deriveComponent(component: string, params: Map<string, string | 
             if (!isRequest(context)) {
                 throw new Error('Cannot derive @target-uri on response');
             }
-            return [context.url.toString()];
+            // the target URI does not include the fragment (RFC 9110 section 7.1)
+            return [context.url.toString().split('#')[0]];
         }
         case '@authority': {
             if (!isRequest(context)) {

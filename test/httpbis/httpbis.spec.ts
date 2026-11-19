@@ -43,6 +43,24 @@ describe('httpbis', () => {
                     'https://www.example.com/path?param=value',
                 ]);
             });
+            it('derives @target-uri without the fragment', () => {
+                const req: Request = {
+                    method: 'POST',
+                    url: 'https://www.example.com/path?param=value#fragment',
+                    headers: {
+                        Host: 'www.example.com',
+                    },
+                };
+                expect(httpbis.deriveComponent('@target-uri', new Map(), req)).to.deep.equal([
+                    'https://www.example.com/path?param=value',
+                ]);
+                expect(httpbis.deriveComponent('@target-uri', new Map(), {
+                    ...req,
+                    url: new URL('https://www.example.com/path?param=value#'),
+                })).to.deep.equal([
+                    'https://www.example.com/path?param=value',
+                ]);
+            });
             it('derives @authority', () => {
                 const req: Request = {
                     method: 'POST',
