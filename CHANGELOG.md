@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1](https://github.com/dhensby/node-http-message-signatures/compare/v1.1.0...v1.1.1) (2026-11-21)
+
+### Bug Fixes
+
+* **httpbis:** exclude the fragment from [@target-uri](https://github.com/target-uri) ([c395785](https://github.com/dhensby/node-http-message-signatures/commit/c395785b43351f780be193f8ed7ef984d7ccd570))
+
 ## [1.1.0](https://github.com/dhensby/node-http-message-signatures/compare/v1.0.10...v1.1.0) (2026-11-17)
 
 ### Features
